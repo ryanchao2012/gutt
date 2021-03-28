@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "testgen"
-version = "0.1.0"
-description = ""
+version = "0.1.1"
+description = "Auto generate templates for unit tests based on source code"
 authors = ["ryanchao2012 <ryanchao2012@gmail.com>"]
 license = "MIT"
 
