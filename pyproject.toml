@@ -6,7 +6,7 @@ authors = ["ryanchao2012 <ryanchao2012@gmail.com>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = "^3.7"
+python = "^3.5"
 click = "^7.1.2"
 
 [tool.poetry.dev-dependencies]
