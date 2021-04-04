@@ -16,6 +16,6 @@ def sync_meta(c, tomlfile=None):
     parser.read(tomlfile)
     version = re.sub(r"[\'\"]", "", parser.get("tool.poetry", "version"))
     name = re.sub(r"[\'\"]", "", parser.get("tool.poetry", "name"))
-    versionfile = os.path.join(project_root, name, "_version.py")
+    versionfile = os.path.join(project_root, 'src', name, "_version.py")
 
     c.run(f"echo '__version__ = \"{version}\"' > {versionfile}")
