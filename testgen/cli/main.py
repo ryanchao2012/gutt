@@ -88,11 +88,11 @@ def main(ctx, module, path, output):
 
             name = obj.__name__
 
-            if isinstance(obj, FunctionType) and f"\ndef test_{name}(" not in source:
+            if isinstance(obj, FunctionType) and f"def test_{name}(" not in source:
 
                 codes_to_add.append(populate_testfunc(obj))
 
-            elif isinstance(obj, type) and f"\nclass Test{name}:" not in source:
+            elif isinstance(obj, type) and f"class Test{name}:" not in source:
                 codes_to_add.append(populate_testclass(obj))
 
         if codes_to_add:
@@ -102,5 +102,5 @@ def main(ctx, module, path, output):
 
             makefile(fullpath, formatted, overwrite=True)
 
-    for dirpath, _, _ in os.walk(output):
+    for dirpath, _, _ in os.walk(output.split(os.path.sep)[0]):
         makefile(os.path.join(dirpath, "__init__.py"))
