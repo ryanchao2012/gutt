@@ -5,8 +5,10 @@ from types import FunctionType
 import click
 from testgen.utils import (
     blacken,
-    collect_classes_and_functions_from_module,
+    collect_classes_and_functions,
+    expand_sys_path,
     load_module_from_pyfile,
+    makefile,
     populate_testclass,
     populate_testfunc,
 )
@@ -34,42 +36,44 @@ def print_version(ctx, param, value):
 )
 @click.option("--module", "-m", help="Target module for generating test templates")
 @click.option(
+    "--path",
+    "-p",
+    multiple=True,
+    default=[os.getcwd()],
+    help='Insert into "sys.path" to search modules, could assign with multiple values',
+)
+@click.option(
     "--output",
     "-o",
     default="tests/testgen",
-    help="Output directory for populating test files, default: tests/testgen",
+    help="Output root directory for populating test files, default: tests/testgen",
 )
-def main(ctx, module, output):
+def main(ctx, module, path, output):
 
     if not (module and isinstance(module, str)):
 
         raise InvalidModuleName(f'got: "{module}"')
 
-    mappings = {}
-    for obj in collect_classes_and_functions_from_module(module):
+    mod_impl_mappings = {}
 
-        mod = obj.__module__
+    with expand_sys_path(*path):
+        for obj in collect_classes_and_functions(module):
 
-        if mod not in mappings:
-            mappings[mod] = []
+            mod = obj.__module__
 
-        if obj not in mappings[mod]:
-            mappings[mod].append(obj)
+            if mod not in mod_impl_mappings:
+                mod_impl_mappings[mod] = []
 
-    for mod, imps in mappings.items():
+            if obj not in mod_impl_mappings[mod]:
+                mod_impl_mappings[mod].append(obj)
+
+    for mod, imps in mod_impl_mappings.items():
 
         pfx, name = mod.rsplit(".", 1)
         filename = f"test_{name}.py"
         fullpath = os.path.join(output, pfx.replace(".", "/"), filename)
 
-        if not os.path.isfile(fullpath):
-            dirname = os.path.dirname(fullpath)
-
-            if not os.path.isdir(dirname):
-                os.makedirs(dirname)
-
-            with open(fullpath, "w"):
-                pass
+        makefile(fullpath)
 
         module = load_module_from_pyfile(f"tests_{name}", fullpath)
 
@@ -78,24 +82,25 @@ def main(ctx, module, output):
         except OSError:
             source = ""
 
-        skeletons_to_add = []
+        codes_to_add = []
 
         for obj in imps:
 
             name = obj.__name__
 
             if isinstance(obj, FunctionType) and f"\ndef test_{name}(" not in source:
-                # f"\ndef test_{name}():\n{' '*4}from {mod} import {name}\n{' '*4}assert {name}\n"
 
-                skeletons_to_add.append(populate_testfunc(obj))
+                codes_to_add.append(populate_testfunc(obj))
 
             elif isinstance(obj, type) and f"\nclass Test{name}:" not in source:
-                skeletons_to_add.append(populate_testclass(obj))
+                codes_to_add.append(populate_testclass(obj))
 
-        if skeletons_to_add:
-            new_source = "\n".join([source] + skeletons_to_add)
+        if codes_to_add:
+            new_source = "\n".join([source] + codes_to_add)
 
             formatted = blacken(new_source)
 
-            with open(fullpath, "w") as f:
-                f.write(formatted)
+            makefile(fullpath, formatted, overwrite=True)
+
+    for dirpath, _, _ in os.walk(output):
+        makefile(os.path.join(dirpath, "__init__.py"))

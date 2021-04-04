@@ -1,12 +1,15 @@
 import importlib
 import inspect
+import os
 import pathlib
 import pkgutil
 import subprocess as sp
+import sys
 import tempfile
+from contextlib import contextmanager
 from importlib._bootstrap_external import SourceFileLoader
 from types import FunctionType, ModuleType
-from typing import List, Union
+from typing import Generator, Union
 
 
 def qualname(obj: Union[FunctionType, ModuleType, type], level: int = -1) -> str:
@@ -37,29 +40,49 @@ def qualname(obj: Union[FunctionType, ModuleType, type], level: int = -1) -> str
     return ".".join(name.split(".")[-level:]) if level > 0 else name
 
 
-def collect_classes_and_functions_from_module(
+def collect_classes_and_functions(
     modname: str,
-) -> List[Union[FunctionType, type]]:
+) -> Generator[Union[FunctionType, type], None, None]:
 
-    cached = set()
     loader: SourceFileLoader = pkgutil.get_loader(modname)
     module = loader.load_module(modname)
 
-    for finder, name, ispkg in pkgutil.walk_packages(
-        module.__path__, module.__name__ + "."
+    cached = set()
+
+    impls = (
+        _collect_from_package(module)
+        if hasattr(
+            module, "__path__"
+        )  # By definition, if a module has a __path__ attribute, it is a package.
+        else _collect_from_module(module)
+    )
+
+    for obj in impls:
+        name = qualname(obj)
+        if obj.__module__.startswith(modname) and (name not in cached):
+            cached.add(name)
+            yield obj
+
+
+def _collect_from_package(
+    package: ModuleType,
+) -> Generator[Union[FunctionType, type], None, None]:
+
+    for finder, name, _ in pkgutil.walk_packages(
+        package.__path__, package.__name__ + "."
     ):
         mod = finder.find_module(name).load_module(name)
 
-        for name, obj in mod.__dict__.items():
-            if (
-                isinstance(obj, (type, FunctionType))
-                and obj.__module__.startswith(modname)
-                and (qualname(obj) not in cached)
-            ):
+        return _collect_from_module(mod)
 
-                cached.add(qualname(obj))
 
-                yield obj
+def _collect_from_module(
+    module: ModuleType,
+) -> Generator[Union[FunctionType, type], None, None]:
+    for _, obj in module.__dict__.items():
+        if isinstance(obj, (type, FunctionType)):
+
+            yield obj
 
 
 def blacken(source_code: str):
@@ -141,3 +164,47 @@ def populate_testfunc(func: FunctionType) -> str:
     ]
 
     return "\n".join(skeleton)
+
+
+@contextmanager
+def expand_sys_path(*paths: str):
+
+    num = len(paths)
+
+    for p in paths[::-1]:
+        if p and isinstance(p, str):
+
+            sys.path.insert(0, p)
+
+    yield
+
+    for _ in range(num):
+        sys.path.pop(0)
+
+
+def makefile(fullpath: str, content: Union[str, bytes] = "", overwrite: bool = False):
+
+    if not os.path.isfile(fullpath):
+
+        dirpath = os.path.dirname(fullpath)
+
+        if not os.path.isdir(dirpath):
+            os.makedirs(dirpath)
+
+        _writefile(fullpath, content)
+
+    elif overwrite:
+
+        _writefile(fullpath, content)
+
+
+def _writefile(
+    fullpath: str,
+    content: Union[str, bytes] = "",
+):
+
+    if not isinstance(content, (str, bytes)):
+        raise TypeError(f"content must be str or bytes, got: {type(content)}")
+
+    with open(fullpath, "wb" if isinstance(content, bytes) else "w") as f:
+        f.write(content)
