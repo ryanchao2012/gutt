@@ -73,7 +73,8 @@ def _collect_from_package(
     ):
         mod = finder.find_module(name).load_module(name)
 
-        return _collect_from_module(mod)
+        for obj in _collect_from_module(mod):
+            yield obj
 
 
 def _collect_from_module(
