@@ -3,14 +3,13 @@ import os
 from types import FunctionType
 
 import click
+from testgen.parser import load_module_from_pyfile
+from testgen.template import populate_testclass, populate_testfunc
 from testgen.utils import (
     blacken,
     collect_classes_and_functions,
     expand_sys_path,
-    load_module_from_pyfile,
     makefile,
-    populate_testclass,
-    populate_testfunc,
 )
 
 
