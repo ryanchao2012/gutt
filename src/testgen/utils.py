@@ -3,13 +3,23 @@ import inspect
 import os
 import pathlib
 import pkgutil
+import re
 import subprocess as sp
 import sys
 import tempfile
 from contextlib import contextmanager
 from importlib._bootstrap_external import SourceFileLoader
+from itertools import tee
 from types import FunctionType, ModuleType
 from typing import Generator, Union
+
+
+def pairwise(iterable):
+    """s -> (s0,s1), (s1,s2), (s2, s3), ..."""
+
+    a, b = tee(iterable)
+    next(b, None)
+    return zip(a, b)
 
 
 def qualname(obj: Union[FunctionType, ModuleType, type], level: int = -1) -> str:
@@ -104,67 +114,6 @@ def blacken(source_code: str):
         pass
 
     return out.decode()
-
-
-def load_module_from_pyfile(modname: str, fullpath: str) -> ModuleType:
-
-    spec = importlib.util.spec_from_file_location(modname, fullpath)
-
-    return spec.loader.load_module(modname)
-
-
-def indent(code: str, level=0, spacing=4) -> str:
-    return " " * spacing * level + code
-
-
-def populate_testclass(cls: type) -> str:
-    """"""
-
-    module = cls.__module__
-    name = cls.__name__
-    skeleton = [
-        f"class Test{name}:",
-        "",
-        indent("@classmethod", level=1),
-        indent("def setup_class(cls):", level=1),
-        indent(f"from {module} import {name}", level=2),
-        indent(f"assert {name}", level=2),
-        "",
-        indent("@classmethod", level=1),
-        indent("def teardown_class(cls):", level=1),
-        indent("pass", level=2),
-        "",
-        indent("def setup_method(self, method):", level=1),
-        indent("pass", level=2),
-        "",
-        indent("def teardown_method(self, method):", level=1),
-        indent("pass", level=2),
-        "",
-    ]
-
-    for k, v in cls.__dict__.items():
-        if (
-            inspect.ismethod(v) or isinstance(v, (FunctionType, classmethod))
-        ) and not k.startswith("__"):
-            skeleton.extend(
-                [indent(f"def test_{k}(self):", level=1), indent("pass", level=2), ""]
-            )
-
-    return "\n".join(skeleton)
-
-
-def populate_testfunc(func: FunctionType) -> str:
-
-    module = func.__module__
-    name = func.__name__
-    skeleton = [
-        f"def test_{name}():",
-        indent(f"from {module} import {name}", level=1),
-        "",
-        indent(f"assert {name}", level=1),
-    ]
-
-    return "\n".join(skeleton)
 
 
 @contextmanager
