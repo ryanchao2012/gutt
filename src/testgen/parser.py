@@ -1,7 +1,7 @@
 import importlib
 import re
 from types import ModuleType
-from typing import List
+from typing import Generator
 
 
 def load_module_from_pyfile(modname: str, fullpath: str) -> ModuleType:
@@ -11,17 +11,15 @@ def load_module_from_pyfile(modname: str, fullpath: str) -> ModuleType:
     return spec.loader.load_module(modname)
 
 
-def split_source_into_blocks(source: str) -> List[str]:
+def split_source_into_blocks(source: str) -> Generator[str, None, None]:
     head_index = 0
-    blocks = []
 
-    pat = re.compile(r"(?=^)[^\s#\'\"]+", re.MULTILINE)
+    pat = re.compile(r"(?=^)[^\s#\'\"\)]+", re.MULTILINE)
 
     for m in re.finditer(pat, source):
         if m.start() > head_index:
-            blocks.append(source[head_index : m.start()])  # NOQA: E203
+            yield source[head_index : m.start()]  # NOQA: E203
+
         head_index = m.start()
 
-    blocks.append(source[head_index:])
-
-    return blocks
+    yield source[head_index:]
