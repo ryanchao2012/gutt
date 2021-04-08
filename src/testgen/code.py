@@ -17,13 +17,13 @@ def indent(code: str, level: int = 0, spacing: int = 4) -> str:
 
 
 @immutable
-class Block:
+class CodeBlock:
     raw: str
     kind: str = "other"  # NOTE: def, class or other
     name: str = None
 
     @classmethod
-    def collect_from_source(cls, code: str) -> List["Block"]:
+    def collect_from_source(cls, code: str) -> List["CodeBlock"]:
 
         pat = re.compile(r"^(?P<kind>def|class) (?P<name>\w+)")
 
@@ -38,7 +38,7 @@ class Block:
         return blocks
 
     @property
-    def children(self, spacing: int = 4) -> List["Block"]:
+    def children(self, spacing: int = 4) -> List["CodeBlock"]:
         if self.kind != "class":
             return []
 

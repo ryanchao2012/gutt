@@ -12,6 +12,8 @@ from testgen.utils import (
     makefile,
 )
 
+from ..code import CodeBlock, indent
+
 
 class InvalidModuleName(Exception):
     pass
@@ -49,6 +51,8 @@ def print_version(ctx, param, value):
 )
 def main(ctx, module, path, output):
 
+    # TODO: ugly workaround, very ugly
+
     if not (module and isinstance(module, str)):
 
         raise InvalidModuleName(f'got: "{module}"')
@@ -81,22 +85,84 @@ def main(ctx, module, path, output):
         except OSError:
             source = ""
 
-        codes_to_add = []
+        blocks = CodeBlock.collect_from_source(source)
+
+        implemented = {
+            bk.name: i for i, bk in enumerate(blocks) if bk.kind in ("def", "class")
+        }
+
+        code_added = 0
 
         for obj in imps:
 
             name = obj.__name__
 
-            if isinstance(obj, FunctionType) and f"def test_{name}(" not in source:
+            if isinstance(obj, FunctionType) and f"test_{name}" not in implemented:
 
-                codes_to_add.append(populate_testfunc(obj))
+                blocks.append(
+                    CodeBlock(
+                        raw=populate_testfunc(obj), name=f"test_{name}", kind="def"
+                    )
+                )
 
-            elif isinstance(obj, type) and f"class Test{name}:" not in source:
-                codes_to_add.append(populate_testclass(obj))
+                code_added += 1
 
-        if codes_to_add:
-            new_source = "\n".join([source] + codes_to_add)
+            elif isinstance(obj, type):
 
+                ut_name = f"Test{name}"
+
+                if ut_name not in implemented:
+                    blocks.append(
+                        CodeBlock(
+                            raw=populate_testclass(obj), name=ut_name, kind="class"
+                        )
+                    )
+
+                    code_added += 1
+
+                else:
+                    block = blocks[implemented[ut_name]]
+
+                    methods_implemented = {
+                        bk.name: i
+                        for i, bk in enumerate(block.children)
+                        if bk.kind in ("def",)
+                    }
+                    methods_to_add = []
+
+                    for k, v in obj.__dict__.items():
+                        method_name = f"test_{k}"
+                        if (
+                            (
+                                inspect.ismethod(v)
+                                or isinstance(v, (FunctionType, classmethod))
+                            )
+                            and (not k.startswith("__"))
+                            and (method_name not in methods_implemented)
+                        ):
+
+                            code = "\n".join(
+                                [
+                                    indent(f"def {method_name}(self):", level=1),
+                                    indent("pass", level=2),
+                                    "",
+                                ]
+                            )
+
+                            methods_to_add.append(code)
+
+                    if methods_to_add:
+
+                        code = "\n".join([block.raw] + methods_to_add)
+
+                        blocks[implemented[ut_name]] = CodeBlock(
+                            raw=code, kind="class", name=ut_name
+                        )
+
+                        code_added += 1
+
+        if code_added > 0:
+            new_source = "\n".join([b.raw for b in blocks])
             formatted = blacken(new_source)
 
             makefile(fullpath, formatted, overwrite=True)

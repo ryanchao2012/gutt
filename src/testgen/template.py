@@ -1,9 +1,7 @@
 import inspect
 from types import FunctionType
 
-
-def indent(code: str, level=0, spacing=4) -> str:
-    return " " * spacing * level + code
+from .code import indent
 
 
 def populate_testclass(cls: type) -> str:
