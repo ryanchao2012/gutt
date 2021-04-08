@@ -15,7 +15,7 @@ readme = ''
 setup(
     long_description=readme,
     name='testgen',
-    version='0.1.2',
+    version='0.2.0',
     description='Auto generate templates for unit tests based on source code',
     python_requires='==3.*,>=3.6.0',
     author='ryanchao2012',
