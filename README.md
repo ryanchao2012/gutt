@@ -112,4 +112,30 @@ Each module maps to a testing module(`module1.py --> test_module1.py`), and each
 
 - `testgen` will skip code generation if the testing templates for the functions already exist.
 - `testgen` won't delete the corresponding testing templates if the source codes get deleted or renamed.
--  For new added codes: modules, functions or methods inside class, just re-run `testgen` to generate new testing templates for them.
+- For new added codes: modules, functions or methods inside class, just re-run `testgen` to generate new testing templates for them.
+
+
+Run unit testing with `pytest`, for example:
+
+```
+$ pytest --doctest-modules --cov=my_awesome_package mytests
+
+=============================== test session starts ===============================
+platform linux -- Python 3.8.8, pytest-4.6.11, py-1.10.0, pluggy-0.13.1
+rootdir: /home/ryan/Workspace/my_awesome_package
+plugins: mock-1.13.0, cov-2.11.1
+collected 5 items                                                                 
+
+mytests/my_awesome_package/test_module1.py .....                            [100%]
+
+----------- coverage: platform linux, python 3.8.8-final-0 -----------
+Name                             Stmts   Miss  Cover
+----------------------------------------------------
+my_awesome_package/__init__.py       0      0   100%
+my_awesome_package/module1.py       13      5    62%
+----------------------------------------------------
+TOTAL                               13      5    62%
+
+
+============================ 5 passed in 0.07 seconds =============================
+```
