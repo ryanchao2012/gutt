@@ -31,7 +31,8 @@ def populate_testclass(cls: type) -> str:
 
     for k, v in cls.__dict__.items():
         if (
-            inspect.ismethod(v) or isinstance(v, (FunctionType, classmethod))
+            inspect.ismethod(v)
+            or isinstance(v, (FunctionType, classmethod, staticmethod))
         ) and not k.startswith("__"):
             skeleton.extend(
                 [indent(f"def test_{k}(self):", level=1), indent("pass", level=2), ""]

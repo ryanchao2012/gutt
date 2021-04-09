@@ -128,6 +128,7 @@ def main(ctx, module, path, output):
                         for i, bk in enumerate(block.children)
                         if bk.kind in ("def",)
                     }
+                    print(">>>", methods_implemented)
                     methods_to_add = []
 
                     for k, v in obj.__dict__.items():
@@ -135,7 +136,9 @@ def main(ctx, module, path, output):
                         if (
                             (
                                 inspect.ismethod(v)
-                                or isinstance(v, (FunctionType, classmethod))
+                                or isinstance(
+                                    v, (FunctionType, classmethod, staticmethod)
+                                )
                             )
                             and (not k.startswith("__"))
                             and (method_name not in methods_implemented)
