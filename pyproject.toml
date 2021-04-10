@@ -1,9 +1,11 @@
 [tool.poetry]
 name = "testgen"
-version = "0.2.1"
+version = "0.2.2"
 description = "Auto generate templates for unit tests based on source code"
 authors = ["ryanchao2012 <ryanchao2012@gmail.com>"]
 license = "MIT"
+readme = "README.md"
+repository = "https://github.com/ryanchao2012/testgen"
 
 [tool.poetry.dependencies]
 python = "^3.6"
