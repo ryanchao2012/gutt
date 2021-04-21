@@ -47,13 +47,16 @@ def qualname(obj: Union[FunctionType, ModuleType, type], level: int = -1) -> str
     return ".".join(name.split(".")[-level:]) if level > 0 else name
 
 
+def load_module_by_name(modname: str) -> ModuleType:
+    loader: SourceFileLoader = pkgutil.get_loader(modname)
+    return loader.load_module(modname)
+
+
 def collect_classes_and_functions(
-    modname: str,
+    module: ModuleType,
 ) -> Generator[Union[FunctionType, type], None, None]:
 
-    loader: SourceFileLoader = pkgutil.get_loader(modname)
-    module = loader.load_module(modname)
-
+    modname = qualname(module)
     cached = set()
 
     impls = (

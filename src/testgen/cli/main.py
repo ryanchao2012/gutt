@@ -1,5 +1,6 @@
 import inspect
 import os
+import re
 from types import FunctionType
 
 import click
@@ -9,6 +10,7 @@ from testgen.utils import (
     blacken,
     collect_classes_and_functions,
     expand_sys_path,
+    load_module_by_name,
     makefile,
 )
 
@@ -35,7 +37,9 @@ def print_version(ctx, param, value):
 @click.option(
     "--version", is_flag=True, callback=print_version, expose_value=False, is_eager=True
 )
-@click.option("--module", "-m", help="Target module for generating test templates")
+@click.option(
+    "--modname", "-m", help="Target module name for generating test templates"
+)
 @click.option(
     "--path",
     "-p",
@@ -49,39 +53,51 @@ def print_version(ctx, param, value):
     default="tests/testgen",
     help="Output root directory for populating test files, default: tests/testgen",
 )
-def main(ctx, module, path, output):
+def main(ctx, modname, path, output):
 
     # TODO: ugly workaround, very ugly
 
-    if not (module and isinstance(module, str)):
+    if not (modname and isinstance(modname, str)):
 
-        raise InvalidModuleName(f'got: "{module}"')
+        raise InvalidModuleName(f'got: "{modname}"')
+
+    module = load_module_by_name(modname)
+
+    ispkg = hasattr(module, "__path__")
 
     mod_impl_mappings = {}
 
     with expand_sys_path(*path):
         for obj in collect_classes_and_functions(module):
 
-            mod = obj.__module__
+            _modname = obj.__module__
 
-            if mod not in mod_impl_mappings:
-                mod_impl_mappings[mod] = []
+            if _modname not in mod_impl_mappings:
+                mod_impl_mappings[_modname] = []
 
-            if obj not in mod_impl_mappings[mod]:
-                mod_impl_mappings[mod].append(obj)
+            if obj not in mod_impl_mappings[_modname]:
+                mod_impl_mappings[_modname].append(obj)
 
-    for mod, imps in mod_impl_mappings.items():
+    for _modname, imps in mod_impl_mappings.items():
 
-        pfx, name = mod.rsplit(".", 1)
+        if ispkg:
+            _modname = re.sub(rf"^{modname}\.", "", _modname)
+            pfx, name = _modname.rsplit(".", 1) if "." in _modname else ("", _modname)
+            pfx = os.path.join(modname.replace(".", "_"), pfx.replace(".", "/"))
+        else:
+            name = _modname.replace(".", "_")
+            pfx = ""
+
         filename = f"test_{name}.py"
-        fullpath = os.path.join(output, pfx.replace(".", "/"), filename)
+
+        fullpath = os.path.join(output, pfx, filename)
 
         makefile(fullpath)
 
-        module = load_module_from_pyfile(f"tests_{name}", fullpath)
+        _module = load_module_from_pyfile(f"tests_{name}", fullpath)
 
         try:
-            source = inspect.getsource(module)
+            source = inspect.getsource(_module)
         except OSError:
             source = ""
 
@@ -128,7 +144,7 @@ def main(ctx, module, path, output):
                         for i, bk in enumerate(block.children)
                         if bk.kind in ("def",)
                     }
-                    print(">>>", methods_implemented)
+
                     methods_to_add = []
 
                     for k, v in obj.__dict__.items():
@@ -170,5 +186,5 @@ def main(ctx, module, path, output):
 
             makefile(fullpath, formatted, overwrite=True)
 
-    for dirpath, _, _ in os.walk(output.split(os.path.sep)[0]):
+    for dirpath, _, _ in os.walk(output):
         makefile(os.path.join(dirpath, "__init__.py"))
