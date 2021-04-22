@@ -1,6 +1,7 @@
 import inspect
 import os
 import re
+from pathlib import Path
 from types import FunctionType
 
 import click
@@ -51,7 +52,7 @@ def print_version(ctx, param, value):
 @click.option(
     "--output",
     "-o",
-    default="tests/testgen",
+    default="tests/_testgen",
     help="Output root directory for populating test files, default: tests/testgen",
 )
 def main(ctx, modname, path, output):
@@ -203,5 +204,20 @@ def main(ctx, modname, path, output):
         else:
             print("All test templates exist, skip code generation")
 
-    for dirpath, _, _ in os.walk(output):
-        makefile(os.path.join(dirpath, "__init__.py"))
+    output_root = Path(output)
+    paths = {output_root}
+    for path in output_root.glob("**/*.py"):
+        if path.name == "__init__.py":
+            continue
+
+        parent = path.parent
+
+        while parent > output_root:
+
+            if not parent.joinpath("__init__.py").exists():
+                paths.add(parent)
+
+            parent = parent.parent
+
+    for p in paths:
+        makefile(os.path.join(str(p), "__init__.py"))
