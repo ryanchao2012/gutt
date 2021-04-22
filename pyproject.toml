@@ -4,7 +4,7 @@ version = "0.2.4"
 description = "Auto generate templates for unit tests based on source code"
 authors = ["ryanchao2012 <ryanchao2012@gmail.com>"]
 license = "MIT"
-readme = "README.rst"
+readme = "README.md"
 repository = "https://github.com/ryanchao2012/testgen"
 
 [tool.poetry.dependencies]
