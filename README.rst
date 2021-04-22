@@ -48,7 +48,7 @@ class MyObject:
 
 ```
 
-We can generate unit testing templates for all implementations by just one line:
+`testgen` can generate unit testing templates for all implementations in just one line:
 
 ```
 $ testgen -m my_awesome_package -o mytests
