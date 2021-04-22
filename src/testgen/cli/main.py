@@ -12,6 +12,7 @@ from testgen.utils import (
     expand_sys_path,
     load_module_by_name,
     makefile,
+    qualname,
 )
 
 from ..code import CodeBlock, indent
@@ -70,6 +71,8 @@ def main(ctx, modname, path, output):
     with expand_sys_path(*path):
         for obj in collect_classes_and_functions(module):
 
+            obj_name = qualname(obj)
+
             _modname = obj.__module__
 
             if _modname not in mod_impl_mappings:
@@ -77,6 +80,7 @@ def main(ctx, modname, path, output):
 
             if obj not in mod_impl_mappings[_modname]:
                 mod_impl_mappings[_modname].append(obj)
+                print(f"Collecting {obj_name}", flush=True)
 
     for _modname, imps in mod_impl_mappings.items():
 
@@ -98,6 +102,7 @@ def main(ctx, modname, path, output):
 
         try:
             source = inspect.getsource(_module)
+            print(f"Loading existing testing codes from {fullpath}", flush=True)
         except OSError:
             source = ""
 
@@ -110,7 +115,7 @@ def main(ctx, modname, path, output):
         code_added = 0
 
         for obj in imps:
-
+            fullname = qualname(obj)
             name = obj.__name__
 
             if isinstance(obj, FunctionType) and f"test_{name}" not in implemented:
@@ -122,6 +127,8 @@ def main(ctx, modname, path, output):
                 )
 
                 code_added += 1
+
+                print(f"Adding test function for {fullname}", flush=True)
 
             elif isinstance(obj, type):
 
@@ -135,6 +142,8 @@ def main(ctx, modname, path, output):
                     )
 
                     code_added += 1
+
+                    print(f"Adding test class for {fullname}", flush=True)
 
                 else:
                     block = blocks[implemented[ut_name]]
@@ -170,6 +179,11 @@ def main(ctx, modname, path, output):
 
                             methods_to_add.append(code)
 
+                            print(
+                                f"Adding test function for method {k} of {fullname}",
+                                flush=True,
+                            )
+
                     if methods_to_add:
 
                         code = "\n".join([block.raw] + methods_to_add)
@@ -185,6 +199,9 @@ def main(ctx, modname, path, output):
             formatted = blacken(new_source)
 
             makefile(fullpath, formatted, overwrite=True)
+            print(f"Generating codes to {fullpath}", flush=True)
+        else:
+            print("All test templates exist, skip code generation")
 
     for dirpath, _, _ in os.walk(output):
         makefile(os.path.join(dirpath, "__init__.py"))
