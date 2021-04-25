@@ -78,6 +78,9 @@ def _collect_from_package(
     package: ModuleType,
 ) -> Generator[Union[FunctionType, type], None, None]:
 
+    for obj in _collect_from_module(package):
+        yield obj
+
     for finder, name, _ in pkgutil.walk_packages(
         package.__path__, package.__name__ + "."
     ):
