@@ -50,14 +50,19 @@ def print_version(ctx, param, value):
     help='Insert into "sys.path" to search modules, could assign with multiple values',
 )
 @click.option(
+    "--exclude",
+    "-e",
+    help="Giving regex pattern to match the implementation to be excluded by its qualname",
+)
+@click.option(
     "--output",
     "-o",
     default="tests/_testgen",
-    help="Output root directory for populating test files, default: tests/testgen",
+    help="Output root directory for populating test files, default: tests/_testgen",
 )
-def main(ctx, modname, path, output):
+def main(ctx, modname, path, exclude, output):
 
-    # TODO: ugly workaround, very ugly
+    # TODO: ugly workaround
 
     if not (modname and isinstance(modname, str)):
 
@@ -73,6 +78,10 @@ def main(ctx, modname, path, output):
         for obj in collect_classes_and_functions(module):
 
             obj_name = qualname(obj)
+            if isinstance(exclude, str) and re.search(exclude, obj_name):
+                print(f"Exclude {obj_name} since it matches with pattern: {exclude}")
+
+                continue
 
             _modname = obj.__module__
 
@@ -81,7 +90,7 @@ def main(ctx, modname, path, output):
 
             if obj not in mod_impl_mappings[_modname]:
                 mod_impl_mappings[_modname].append(obj)
-                print(f"Collecting {obj_name}", flush=True)
+                print(f"Collect {obj_name}")
 
     for _modname, imps in mod_impl_mappings.items():
 
@@ -103,7 +112,7 @@ def main(ctx, modname, path, output):
 
         try:
             source = inspect.getsource(_module)
-            print(f"Loading existing testing codes from {fullpath}", flush=True)
+            print(f"Load existing codes from {fullpath}")
         except OSError:
             source = ""
 
@@ -129,7 +138,7 @@ def main(ctx, modname, path, output):
 
                 code_added += 1
 
-                print(f"Adding test function for {fullname}", flush=True)
+                print(f"Add test function for {fullname}")
 
             elif isinstance(obj, type):
 
@@ -144,7 +153,7 @@ def main(ctx, modname, path, output):
 
                     code_added += 1
 
-                    print(f"Adding test class for {fullname}", flush=True)
+                    print(f"Add test class for {fullname}")
 
                 else:
                     block = blocks[implemented[ut_name]]
@@ -180,10 +189,7 @@ def main(ctx, modname, path, output):
 
                             methods_to_add.append(code)
 
-                            print(
-                                f"Adding test function for method {k} of {fullname}",
-                                flush=True,
-                            )
+                            print(f"Add test function for method {k} of {fullname}")
 
                     if methods_to_add:
 
@@ -200,7 +206,7 @@ def main(ctx, modname, path, output):
             formatted = blacken(new_source)
 
             makefile(fullpath, formatted, overwrite=True)
-            print(f"Generating codes to {fullpath}", flush=True)
+            print(f"Generate codes to {fullpath}")
         else:
             print("All test templates exist, skip code generation")
 
