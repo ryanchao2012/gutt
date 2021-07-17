@@ -61,6 +61,7 @@ def collect_items_from_module(module: ModuleType, exclude=None, sleep_interval=0
         if obj not in mod_impl_mappings[_modname]:
             items += 1
             mod_impl_mappings[_modname].append(obj)
+            click.echo("\033[K", nl=False)
             click.secho(f"collecting {items} items: ", nl=False, fg="bright_white")
             click.secho(f"{obj_name}\r", nl=False, fg="bright_cyan")
             time.sleep(sleep_interval)
@@ -156,8 +157,7 @@ def main(ctx, modname, path, exclude, output):
 
                 code_added += 1
 
-                # print(f"Add test function for {fullname}")
-
+                click.echo("\033[K", nl=False)
                 click.secho("adding test function: ", nl=False, fg="bright_white")
                 click.secho(f"{fullname}\r", nl=False, fg="bright_cyan")
 
@@ -174,7 +174,7 @@ def main(ctx, modname, path, exclude, output):
 
                     code_added += 1
 
-                    # print(f"Add test class for {fullname}")
+                    click.echo("\033[K", nl=False)
                     click.secho("adding test class: ", nl=False, fg="bright_white")
                     click.secho(f"{fullname}\r", nl=False, fg="bright_cyan")
 
@@ -212,6 +212,7 @@ def main(ctx, modname, path, exclude, output):
 
                             methods_to_add.append(code)
 
+                            click.echo("\033[K", nl=False)
                             click.secho(
                                 "adding test method: ", nl=False, fg="bright_white"
                             )
