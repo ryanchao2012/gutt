@@ -21,7 +21,7 @@ pytest-cov = "^2.11.1"
 ipython = "^6"
 
 [tool.poetry.scripts]
-testgen = "gutt.cli.main:main"
+gutt = "gutt.cli.main:main"
 
 
 [build-system]

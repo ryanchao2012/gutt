@@ -1,9 +1,3 @@
-def test_blacken():
-    from gutt.utils import blacking
-
-    assert blacking
-
-
 def test_collect_classes_and_functions():
     from gutt.utils import collect_classes_and_functions
 
@@ -56,3 +50,15 @@ def test__writefile():
     from gutt.utils import _writefile
 
     assert _writefile
+
+
+def test_blacking():
+    from gutt.utils import blacking
+
+    assert blacking
+
+
+def test_isorting():
+    from gutt.utils import isorting
+
+    assert isorting
