@@ -1,6 +1,6 @@
-from ._meta import get_version
+from ._meta import authors, version
 
-__version__ = get_version()
+__authors__ = authors
+__version__ = version
 
-
-__all__ = ["__version__"]
+__all__ = ["__authors__", "__version__"]
