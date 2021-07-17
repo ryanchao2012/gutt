@@ -1,7 +1,7 @@
 def test_blacken():
-    from gutt.utils import blacken
+    from gutt.utils import blacking
 
-    assert blacken
+    assert blacking
 
 
 def test_collect_classes_and_functions():
