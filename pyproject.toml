@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "gutt"
-version = "0.5.1"
+version = "0.5.2"
 description = "Auto generate unit test templates"
 authors = ["Ryan <ryanchao2012@gmail.com>"]
 license = "MIT"
