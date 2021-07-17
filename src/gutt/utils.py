@@ -29,10 +29,10 @@ def qualname(obj: Union[FunctionType, ModuleType, type], level: int = -1) -> str
     ...     pass
 
     >>> qualname(Foo)
-    'testgen.utils.Foo'
+    'gutt.utils.Foo'
 
     >>> qualname(bar)
-    'testgen.utils.bar'
+    'gutt.utils.bar'
     """
 
     if isinstance(obj, FunctionType) or isinstance(obj, type):
@@ -171,10 +171,7 @@ def makefile(fullpath: str, content: Union[str, bytes] = "", overwrite: bool = F
         _writefile(fullpath, content)
 
 
-def _writefile(
-    fullpath: str,
-    content: Union[str, bytes] = "",
-):
+def _writefile(fullpath: str, content: Union[str, bytes] = ""):
 
     if not isinstance(content, (str, bytes)):
         raise TypeError(f"content must be str or bytes, got: {type(content)}")

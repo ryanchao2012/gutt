@@ -28,7 +28,7 @@ def print_version(ctx, param, value):
     if not value or ctx.resilient_parsing:
         return
 
-    from testgen import __version__
+    from gutt import __version__
 
     click.echo(f"Version: {__version__}")
 
@@ -58,8 +58,8 @@ def print_version(ctx, param, value):
 @click.option(
     "--output",
     "-o",
-    default="tests/_testgen",
-    help="Output root directory for populating test files, default: tests/_testgen",
+    default="tests/_gutt",
+    help="Output root directory for populating test files, default: tests/_gutt",
 )
 def main(ctx, modname, path, exclude, output):
 
