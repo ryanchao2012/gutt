@@ -5,9 +5,9 @@ from pathlib import Path
 from types import FunctionType
 
 import click
-from testgen.parser import load_module_from_pyfile
-from testgen.template import populate_testclass, populate_testfunc
-from testgen.utils import (
+from gutt.parser import load_module_from_pyfile
+from gutt.template import populate_testclass, populate_testfunc
+from gutt.utils import (
     blacking,
     collect_classes_and_functions,
     expand_sys_path,
