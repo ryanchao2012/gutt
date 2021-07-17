@@ -1,3 +1,4 @@
+import io
 import os
 import pathlib
 import pkgutil
@@ -84,9 +85,16 @@ def _collect_from_package(
     for finder, name, _ in pkgutil.walk_packages(
         package.__path__, package.__name__ + "."
     ):
-        mod = finder.find_module(name).load_module(name)
+
+        with escape_any_commandline_parser():
+            try:
+                mod = finder.find_module(name).load_module(name)
+
+            except BaseException:
+                continue
 
         for obj in _collect_from_module(mod):
+
             yield obj
 
 
@@ -153,6 +161,24 @@ def expand_sys_path(*paths: str):
 
     for _ in range(num):
         sys.path.pop(0)
+
+
+@contextmanager
+def escape_any_commandline_parser():
+
+    argv = sys.argv
+    stdout = sys.stdout
+    stderr = sys.stderr
+
+    sys.argv = [""]
+    sys.stdout = io.StringIO
+    sys.stderr = io.StringIO
+
+    yield
+
+    sys.argv = argv
+    sys.stdout = stdout
+    sys.stderr = stderr
 
 
 def makefile(fullpath: str, content: Union[str, bytes] = "", overwrite: bool = False):
