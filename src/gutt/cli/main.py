@@ -8,9 +8,10 @@ import click
 from testgen.parser import load_module_from_pyfile
 from testgen.template import populate_testclass, populate_testfunc
 from testgen.utils import (
-    blacken,
+    blacking,
     collect_classes_and_functions,
     expand_sys_path,
+    isorting,
     load_module_by_name,
     makefile,
     qualname,
@@ -203,7 +204,7 @@ def main(ctx, modname, path, exclude, output):
 
         if code_added > 0:
             new_source = "\n".join([b.raw for b in blocks])
-            formatted = blacken(new_source)
+            formatted = isorting(blacking(new_source))
 
             makefile(fullpath, formatted, overwrite=True)
             print(f"Generate codes to {fullpath}")

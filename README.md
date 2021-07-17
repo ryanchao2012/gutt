@@ -1,10 +1,10 @@
-# TestGen
-Auto generate unit test templates based on source code
+# gutt
+Auto Generate Unit Test Templates
 
 ## Install
 
 ```
-$ pip install testgen
+$ pip install gutt
 ```
 
 
@@ -48,10 +48,10 @@ class MyObject:
 
 ```
 
-`testgen` can generate unit testing templates for all implementations in just one line:
+`gutt` can generate unit testing templates for all implementations in just one line:
 
 ```
-$ testgen -m my_awesome_package -o mytests
+$ gutt -m my_awesome_package -o mytests
 ```
 
 The output layout:
@@ -65,7 +65,7 @@ mytests
 
 ```
 
-The testing templates inside `test_module1.py`
+The unit test templates inside `test_module1.py`
 
 ```python
 def test_funcion1():
@@ -108,14 +108,14 @@ class TestMyObject:
 
 ```
 
-Each module maps to a testing module(`module1.py --> test_module1.py`), and each function, each class and all methods inside that class maps to corresponding testing templates. 
+Each module in source codes maps to a testing module(`module1.py --> test_module1.py`), and each function, each class and all methods inside that class maps to corresponding test templates. 
 
-- `testgen` will skip code generation if the testing templates for the functions already exist.
-- `testgen` won't delete the corresponding testing templates if the source codes get deleted or renamed.
-- For new added codes: modules, functions or methods inside class, just re-run `testgen` to generate new testing templates for them.
+- `gutt` will skip code generation if the test templates for the functions already exist.
+- `gutt` won't delete the corresponding test templates if the source codes get deleted or renamed.
+- For new added codes: modules, functions or methods inside class, just re-run `gutt` to generate new test templates for them.
 
 
-Run unit testing with `pytest`, for example:
+Run unit test with `pytest`, for example:
 
 ```
 $ pytest --doctest-modules --cov=my_awesome_package mytests
