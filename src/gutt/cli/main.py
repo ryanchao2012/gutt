@@ -1,8 +1,9 @@
 import inspect
 import os
 import re
+import time
 from pathlib import Path
-from types import FunctionType
+from types import FunctionType, ModuleType
 
 import click
 from gutt.parser import load_module_from_pyfile
@@ -20,7 +21,7 @@ from gutt.utils import (
 from ..code import CodeBlock, indent
 
 
-class InvalidModuleName(Exception):
+class InvalidModule(Exception):
     pass
 
 
@@ -33,6 +34,41 @@ def print_version(ctx, param, value):
     click.echo(f"Version: {__version__}")
 
     ctx.exit()
+
+
+def collect_items_from_module(module: ModuleType, exclude=None, sleep_interval=0.01):
+    mod_impl_mappings = {}
+    items = 0
+    should_nl = True
+
+    for obj in collect_classes_and_functions(module):
+
+        obj_name = qualname(obj)
+        if isinstance(exclude, str) and re.search(exclude, obj_name):
+            if should_nl:
+                click.echo()
+                should_nl = False
+            click.secho("excluding ", nl=False, fg="bright_white")
+            click.secho(obj_name, fg="bright_black")
+
+            continue
+
+        _modname = obj.__module__
+
+        if _modname not in mod_impl_mappings:
+            mod_impl_mappings[_modname] = []
+
+        if obj not in mod_impl_mappings[_modname]:
+            items += 1
+            mod_impl_mappings[_modname].append(obj)
+            click.secho(f"collecting {items} items: ", nl=False, fg="bright_white")
+            click.secho(f"{obj_name}\r", nl=False, fg="bright_cyan")
+            time.sleep(sleep_interval)
+            should_nl = True
+
+    click.echo()
+
+    return mod_impl_mappings
 
 
 @click.command()
@@ -63,44 +99,24 @@ def print_version(ctx, param, value):
 )
 def main(ctx, modname, path, exclude, output):
 
-    # TODO: ugly workaround
-
-    if not (modname and isinstance(modname, str)):
-
-        raise InvalidModuleName(f'got: "{modname}"')
-
-    module = load_module_by_name(modname)
+    try:
+        module = load_module_by_name(modname)
+    except Exception:
+        raise InvalidModule(f'got: "{modname}"')
 
     ispkg = hasattr(module, "__path__")
 
-    mod_impl_mappings = {}
-
     with expand_sys_path(*path):
-        for obj in collect_classes_and_functions(module):
+        mod_impl_mappings = collect_items_from_module(module, exclude=exclude)
 
-            obj_name = qualname(obj)
-            if isinstance(exclude, str) and re.search(exclude, obj_name):
-                print(f"Exclude {obj_name} since it matches with pattern: {exclude}")
-
-                continue
-
-            _modname = obj.__module__
-
-            if _modname not in mod_impl_mappings:
-                mod_impl_mappings[_modname] = []
-
-            if obj not in mod_impl_mappings[_modname]:
-                mod_impl_mappings[_modname].append(obj)
-                print(f"Collect {obj_name}")
-
-    for _modname, imps in mod_impl_mappings.items():
+    for mod, imps in mod_impl_mappings.items():
 
         if ispkg:
-            _modname = re.sub(rf"^{modname}\.", "", _modname)
-            pfx, name = _modname.rsplit(".", 1) if "." in _modname else ("", _modname)
+            mod = re.sub(rf"^{modname}\.", "", mod)
+            pfx, name = mod.rsplit(".", 1) if "." in mod else ("", mod)
             pfx = os.path.join(modname.replace(".", "_"), pfx.replace(".", "/"))
         else:
-            name = _modname.replace(".", "_")
+            name = mod.replace(".", "_")
             pfx = ""
 
         filename = f"test_{name}.py"
@@ -109,11 +125,12 @@ def main(ctx, modname, path, exclude, output):
 
         makefile(fullpath)
 
-        _module = load_module_from_pyfile(f"tests_{name}", fullpath)
+        _module = load_module_from_pyfile(f"test_{name}", fullpath)
 
         try:
             source = inspect.getsource(_module)
-            print(f"Load existing codes from {fullpath}")
+            click.secho("loading existing codes from ", nl=False, fg="bright_white")
+            click.secho(f"{fullpath}", fg="bright_green")
         except OSError:
             source = ""
 
@@ -139,7 +156,10 @@ def main(ctx, modname, path, exclude, output):
 
                 code_added += 1
 
-                print(f"Add test function for {fullname}")
+                # print(f"Add test function for {fullname}")
+
+                click.secho("adding test function: ", nl=False, fg="bright_white")
+                click.secho(f"{fullname}\r", nl=False, fg="bright_cyan")
 
             elif isinstance(obj, type):
 
@@ -154,7 +174,9 @@ def main(ctx, modname, path, exclude, output):
 
                     code_added += 1
 
-                    print(f"Add test class for {fullname}")
+                    # print(f"Add test class for {fullname}")
+                    click.secho("adding test class: ", nl=False, fg="bright_white")
+                    click.secho(f"{fullname}\r", nl=False, fg="bright_cyan")
 
                 else:
                     block = blocks[implemented[ut_name]]
@@ -190,7 +212,10 @@ def main(ctx, modname, path, exclude, output):
 
                             methods_to_add.append(code)
 
-                            print(f"Add test function for method {k} of {fullname}")
+                            click.secho(
+                                "adding test method: ", nl=False, fg="bright_white"
+                            )
+                            click.secho(f"{fullname}\r", nl=False, fg="bright_cyan")
 
                     if methods_to_add:
 
@@ -202,14 +227,19 @@ def main(ctx, modname, path, exclude, output):
 
                         code_added += 1
 
+            time.sleep(0.01)
+
         if code_added > 0:
+            click.echo()
             new_source = "\n".join([b.raw for b in blocks])
             formatted = isorting(blacking(new_source))
 
             makefile(fullpath, formatted, overwrite=True)
-            print(f"Generate codes to {fullpath}")
+            click.secho("writing codes to ", nl=False, fg="bright_white")
+            click.secho(f"{fullpath}", fg="bright_green")
+
         else:
-            print("All test templates exist, skip code generation")
+            click.secho("all templates populated, skip", fg="bright_black")
 
     output_root = Path(output)
     paths = {output_root}

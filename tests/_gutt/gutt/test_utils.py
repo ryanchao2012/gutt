@@ -62,3 +62,9 @@ def test_isorting():
     from gutt.utils import isorting
 
     assert isorting
+
+
+def test_escape_any_commandline_parser():
+    from gutt.utils import escape_any_commandline_parser
+
+    assert escape_any_commandline_parser
