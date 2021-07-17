@@ -1,7 +1,7 @@
 class TestInvalidModuleName:
     @classmethod
     def setup_class(cls):
-        from testgen.cli.main import InvalidModuleName
+        from gutt.cli.main import InvalidModuleName
 
         assert InvalidModuleName
 
@@ -17,6 +17,6 @@ class TestInvalidModuleName:
 
 
 def test_print_version():
-    from testgen.cli.main import print_version
+    from gutt.cli.main import print_version
 
     assert print_version

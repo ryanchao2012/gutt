@@ -1,7 +1,7 @@
 class TestCodeBlock:
     @classmethod
     def setup_class(cls):
-        from testgen.code import CodeBlock
+        from gutt.code import CodeBlock
 
         assert CodeBlock
 
@@ -20,12 +20,12 @@ class TestCodeBlock:
 
 
 def test_indent():
-    from testgen.code import indent
+    from gutt.code import indent
 
     assert indent
 
 
 def test_unindent():
-    from testgen.code import unindent
+    from gutt.code import unindent
 
     assert unindent
