@@ -100,14 +100,13 @@ def collect_items_from_module(module: ModuleType, exclude=None, sleep_interval=0
 )
 def main(ctx, modname, path, exclude, output):
 
-    try:
-        module = load_module_by_name(modname)
-    except Exception:
-        raise InvalidModule(f'got: "{modname}"')
-
-    ispkg = hasattr(module, "__path__")
-
     with expand_sys_path(*path):
+        try:
+            module = load_module_by_name(modname)
+        except Exception:
+            raise InvalidModule(f'got: "{modname}"')
+
+        ispkg = hasattr(module, "__path__")
         mod_impl_mappings = collect_items_from_module(module, exclude=exclude)
 
     for mod, imps in mod_impl_mappings.items():

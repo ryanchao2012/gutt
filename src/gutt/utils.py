@@ -171,8 +171,8 @@ def escape_any_commandline_parser():
     stderr = sys.stderr
 
     sys.argv = [""]
-    sys.stdout = io.StringIO
-    sys.stderr = io.StringIO
+    sys.stdout = io.StringIO()
+    sys.stderr = io.StringIO()
 
     yield
 
