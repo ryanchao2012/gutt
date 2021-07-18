@@ -1,5 +1,11 @@
+![](https://github.com/ryanchao2012/gutt/actions/workflows/gutt-run-unittests.yml/badge.svg)
+![](https://img.shields.io/pypi/v/gutt.svg)
+![](https://img.shields.io/pypi/pyversions/gutt)
+![](https://img.shields.io/github/license/ryanchao2012/gutt)
+
 # gutt
 Auto Generate Unit Test Templates
+
 
 ## Install
 
