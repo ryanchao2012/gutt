@@ -11,6 +11,7 @@ repository = "https://github.com/ryanchao2012/gutt"
 python = "^3.7"
 click = "^7.1.2"
 isort = "<5.9"
+jedi = "<0.18"
 
 [tool.poetry.dev-dependencies]
 black = "^20.8b1"
@@ -18,7 +19,7 @@ invoke = "^1.5.0"
 flake8 = "^3.9.0"
 pytest = "^6.2.2"
 pytest-cov = "^2.11.1"
-ipython = "^6"
+ipython = "^7.25.0"
 
 [tool.poetry.scripts]
 gutt = "gutt.cli.main:main"
