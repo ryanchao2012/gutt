@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "gutt"
-version = "0.6.0"
+version = "0.6.1"
 description = "Auto generate unit test templates"
 authors = ["Ryan <ryanchao2012@gmail.com>"]
 license = "MIT"
@@ -10,7 +10,7 @@ repository = "https://github.com/ryanchao2012/gutt"
 [tool.poetry.dependencies]
 python = "^3.7"
 click = "^7.1.2"
-isort = "<5.9"
+isort = "^5"
 jedi = "<0.18"
 
 [tool.poetry.dev-dependencies]
