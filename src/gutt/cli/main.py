@@ -1,24 +1,13 @@
-import inspect
 import os
 import re
-import time
+from collections import OrderedDict
 from pathlib import Path
-from types import FunctionType, ModuleType
 
 import click
-from gutt.parser import load_module_from_pyfile
-from gutt.template import populate_testclass, populate_testfunc
-from gutt.utils import (
-    blacking,
-    collect_classes_and_functions,
-    expand_sys_path,
-    isorting,
-    load_module_by_name,
-    makefile,
-    qualname,
-)
-
-from ..code import CodeBlock, indent
+from asttrs import ClassDef, FunctionDef, Module
+from gutt.model import Code, ModuleIO
+from gutt.template import Template
+from gutt.utils import expand_sys_path, makefile
 
 
 class InvalidModule(Exception):
@@ -36,46 +25,15 @@ def print_version(ctx, param, value):
     ctx.exit()
 
 
-def collect_items_from_module(module: ModuleType, exclude=None, sleep_interval=0.01):
-    mod_impl_mappings = {}
-    items = 0
-    should_nl = True
-
-    for obj in collect_classes_and_functions(module):
-
-        obj_name = qualname(obj)
-        if isinstance(exclude, str) and re.search(exclude, obj_name):
-            if should_nl:
-                click.echo()
-                should_nl = False
-            click.secho("excluding ", nl=False, fg="bright_white")
-            click.secho(obj_name, fg="bright_black")
-
-            continue
-
-        _modname = obj.__module__
-
-        if _modname not in mod_impl_mappings:
-            mod_impl_mappings[_modname] = []
-
-        if obj not in mod_impl_mappings[_modname]:
-            items += 1
-            mod_impl_mappings[_modname].append(obj)
-            click.echo("\033[K", nl=False)
-            click.secho(f"collecting {items} items: ", nl=False, fg="bright_white")
-            click.secho(f"{obj_name}\r", nl=False, fg="bright_cyan")
-            time.sleep(sleep_interval)
-            should_nl = True
-
-    click.echo()
-
-    return mod_impl_mappings
-
-
 @click.command()
 @click.pass_context
 @click.option(
-    "--version", is_flag=True, callback=print_version, expose_value=False, is_eager=True
+    "--version",
+    "-V",
+    is_flag=True,
+    callback=print_version,
+    expose_value=False,
+    is_eager=True,
 )
 @click.option(
     "--modname", "-m", help="Target module name for generating test templates"
@@ -90,156 +48,109 @@ def collect_items_from_module(module: ModuleType, exclude=None, sleep_interval=0
 @click.option(
     "--exclude",
     "-e",
-    help="Giving regex pattern to match the implementation to be excluded by its qualname",
+    help="Giving regex pattern to match the implementation to be excluded by its qualname.",
 )
 @click.option(
     "--output",
     "-o",
     default="tests/_gutt",
-    help="Output root directory for populating test files, default: tests/_gutt",
+    help='Output root directory for populating test files, default: "tests/_gutt".',
 )
-def main(ctx, modname, path, exclude, output):
+@click.option(
+    "--template",
+    "-t",
+    # default="tests/_gutt",
+    # help='Output root directory for populating test files, default: "tests/_gutt".',
+)
+def main(ctx, modname, path, exclude, output, template):
 
     with expand_sys_path(*path):
-        try:
-            module = load_module_by_name(modname)
-        except Exception:
-            raise InvalidModule(f'got: "{modname}"')
+        module: ModuleIO = ModuleIO.from_name(modname, output)
 
-        ispkg = hasattr(module, "__path__")
-        mod_impl_mappings = collect_items_from_module(module, exclude=exclude)
+        if module is None:
+            raise InvalidModule(modname)
 
-    for mod, imps in mod_impl_mappings.items():
+        for mod in module.submodules:
 
-        if ispkg:
-            mod = re.sub(rf"^{modname}\.", "", mod)
-            pfx, name = mod.rsplit(".", 1) if "." in mod else ("", mod)
-            pfx = os.path.join(modname.replace(".", "_"), pfx.replace(".", "/"))
-        else:
-            name = mod.replace(".", "_")
-            pfx = ""
+            try:
+                src_mod = Module.from_file(mod.src)
 
-        filename = f"test_{name}.py"
+            except Exception as error:
+                # TODO: warning
+                print("!!!", type(error), error, mod.src)
+                continue
 
-        fullpath = os.path.join(output, pfx, filename)
+            # TODO: exclude
+            src_codes = OrderedDict(
+                (f"{mod.name}.{el.name}", Code(module=mod, ast=el))
+                for el in src_mod.body
+                if isinstance(el, (FunctionDef, ClassDef))
+            )
 
-        makefile(fullpath)
+            if len(src_codes) == 0:
+                continue
 
-        _module = load_module_from_pyfile(f"test_{name}", fullpath)
+            try:
+                test_mod = Module.from_file(mod.dst)
 
-        try:
-            source = inspect.getsource(_module)
-            click.secho("loading existing codes from ", nl=False, fg="bright_white")
-            click.secho(f"{fullpath}", fg="bright_green")
-        except OSError:
-            source = ""
+            except FileNotFoundError:
+                test_mod = Module()
 
-        blocks = CodeBlock.collect_from_source(source)
+            except Exception as error:
+                # TODO: warning
+                print("!!!", type(error), error, mod.dst)
+                continue
 
-        implemented = {
-            bk.name: i for i, bk in enumerate(blocks) if bk.kind in ("def", "class")
-        }
+            test_codes = OrderedDict()
 
-        code_added = 0
-
-        for obj in imps:
-            fullname = qualname(obj)
-            name = obj.__name__
-
-            if isinstance(obj, FunctionType) and f"test_{name}" not in implemented:
-
-                blocks.append(
-                    CodeBlock(
-                        raw=populate_testfunc(obj), name=f"test_{name}", kind="def"
-                    )
-                )
-
-                code_added += 1
-
-                click.echo("\033[K", nl=False)
-                click.secho("adding test function: ", nl=False, fg="bright_white")
-                click.secho(f"{fullname}\r", nl=False, fg="bright_cyan")
-
-            elif isinstance(obj, type):
-
-                ut_name = f"Test{name}"
-
-                if ut_name not in implemented:
-                    blocks.append(
-                        CodeBlock(
-                            raw=populate_testclass(obj), name=ut_name, kind="class"
-                        )
+            for i, el in enumerate(test_mod.body):
+                if isinstance(el, (ClassDef, FunctionDef)):
+                    test_pfx = (
+                        Template.function_layout.prefix
+                        if isinstance(el, FunctionDef)
+                        else Template.class_layout.prefix
                     )
 
-                    code_added += 1
-
-                    click.echo("\033[K", nl=False)
-                    click.secho("adding test class: ", nl=False, fg="bright_white")
-                    click.secho(f"{fullname}\r", nl=False, fg="bright_cyan")
+                    org_name = re.sub(rf"^{test_pfx}(.+)", r"\1", el.name)
+                    key = f"{mod.name}.{org_name}"
 
                 else:
-                    block = blocks[implemented[ut_name]]
+                    key = f"#{i}"
 
-                    methods_implemented = {
-                        bk.name: i
-                        for i, bk in enumerate(block.children)
-                        if bk.kind in ("def",)
-                    }
+                test_codes.update({key: Code(module=mod, ast=el)})
 
-                    methods_to_add = []
+            body = []
 
-                    for k, v in obj.__dict__.items():
-                        method_name = f"test_{k}"
-                        if (
-                            (
-                                inspect.ismethod(v)
-                                or isinstance(
-                                    v, (FunctionType, classmethod, staticmethod)
-                                )
-                            )
-                            and (not k.startswith("__"))
-                            and (method_name not in methods_implemented)
-                        ):
+            for key, tcode in test_codes.items():
 
-                            code = "\n".join(
-                                [
-                                    indent(f"def {method_name}(self):", level=1),
-                                    indent("pass", level=2),
-                                    "",
-                                ]
-                            )
+                if key in src_codes:
 
-                            methods_to_add.append(code)
+                    scode = src_codes.pop(key)
 
-                            click.echo("\033[K", nl=False)
-                            click.secho(
-                                "adding test method: ", nl=False, fg="bright_white"
-                            )
-                            click.secho(f"{fullname}\r", nl=False, fg="bright_cyan")
+                    if isinstance(scode, ClassDef):
+                        # TODO: check the differences
+                        # tcode = ...
+                        pass
 
-                    if methods_to_add:
+                body.append(tcode.ast)
 
-                        code = "\n".join([block.raw] + methods_to_add)
+            for key, scode in src_codes.items():
 
-                        blocks[implemented[ut_name]] = CodeBlock(
-                            raw=code, kind="class", name=ut_name
-                        )
+                Layout = (
+                    Template.function_layout
+                    if isinstance(scode.ast, FunctionDef)
+                    else Template.class_layout
+                )
 
-                        code_added += 1
+                # TODO: append imp to output module body with defined template
+                body.append(Layout(scode).build())
 
-            time.sleep(0.01)
+            test_mod = Module(body=body)
 
-        if code_added > 0:
-            click.echo()
-            new_source = "\n".join([b.raw for b in blocks])
-            formatted = isorting(blacking(new_source))
-
-            makefile(fullpath, formatted, overwrite=True)
-            click.secho("writing codes to ", nl=False, fg="bright_white")
-            click.secho(f"{fullpath}", fg="bright_green")
-
-        else:
-            click.secho("all templates populated, skip", fg="bright_black")
+            print("#", mod.dst)
+            # test_mod.show()
+            makefile(mod.dst)
+            test_mod.to_file(mod.dst)
 
     output_root = Path(output)
     paths = {output_root}
@@ -258,3 +169,9 @@ def main(ctx, modname, path, exclude, output):
 
     for p in paths:
         makefile(os.path.join(str(p), "__init__.py"))
+
+
+def _echo_collect(name: str, i: int = 1):
+    click.echo("\033[K", nl=False)
+    click.secho(f"collecting {i} item: ", nl=False, fg="bright_white")
+    click.secho(f"{name}\r", nl=False, fg="bright_cyan")
