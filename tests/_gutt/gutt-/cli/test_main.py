@@ -38,9 +38,3 @@ class TestInvalidModule:
 
     def teardown_method(self, method):
         pass
-
-
-def test_collect_items_from_module():
-    from gutt.cli.main import collect_items_from_module
-
-    assert collect_items_from_module

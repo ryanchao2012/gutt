@@ -1,55 +1,134 @@
-import inspect
-from types import FunctionType
+from typing import List as LIST
 
-from .code import indent
+import attr
+from asttrs import (
+    AST,
+    ClassDef,
+    FunctionDef,
+    ImportFrom,
+    Name,
+    Pass,
+    alias,
+    arg,
+    arguments,
+    stmt,
+)
 
+from gutt.model import Code
 
-def populate_testclass(cls: type) -> str:
-    """"""
-
-    module = cls.__module__
-    name = cls.__name__
-    skeleton = [
-        f"class Test{name}:",
-        "",
-        indent("@classmethod", level=1),
-        indent("def setup_class(cls):", level=1),
-        indent(f"from {module} import {name}", level=2),
-        indent(f"assert {name}", level=2),
-        "",
-        indent("@classmethod", level=1),
-        indent("def teardown_class(cls):", level=1),
-        indent("pass", level=2),
-        "",
-        indent("def setup_method(self, method):", level=1),
-        indent("pass", level=2),
-        "",
-        indent("def teardown_method(self, method):", level=1),
-        indent("pass", level=2),
-        "",
-    ]
-
-    for k, v in cls.__dict__.items():
-        if (
-            inspect.ismethod(v)
-            or isinstance(v, (FunctionType, classmethod, staticmethod))
-        ) and not k.startswith("__"):
-            skeleton.extend(
-                [indent(f"def test_{k}(self):", level=1), indent("pass", level=2), ""]
-            )
-
-    return "\n".join(skeleton)
+from .utils import load_module_by_name
 
 
-def populate_testfunc(func: FunctionType) -> str:
+class Layout:
 
-    module = func.__module__
-    name = func.__name__
-    skeleton = [
-        f"def test_{name}():",
-        indent(f"from {module} import {name}", level=1),
-        "",
-        indent(f"assert {name}", level=1),
-    ]
+    prefix = "Test"
+    ref = AST
 
-    return "\n".join(skeleton)
+    def __init__(self, src: Code):
+
+        self._src = src
+
+    def build(self) -> AST:
+
+        fields = {f.name for f in attr.fields(self.ref)}
+
+        params = {fd: getattr(self, fd) for fd in fields if hasattr(self, fd)}
+
+        return self.ref(**params)
+
+
+class FunctionLayout(Layout):
+
+    prefix = "test_"
+    ref = FunctionDef
+
+    @property
+    def name(self):
+        return f"{self.prefix}{self._src.ast.name}"
+
+    @property
+    def body(self):
+        return [
+            ImportFrom(
+                module=self._src.module.name, names=[alias(name=self._src.ast.name)]
+            ),
+            Pass(),
+        ]
+
+
+class MethodLayout(FunctionLayout):
+    @property
+    def body(self):
+        return [Pass()]
+
+    @property
+    def args(self):
+        return arguments(args=[arg(arg="self")])
+
+
+class ClassLayout(Layout):
+
+    prefix = "Test"
+    ref = ClassDef
+    method_layout = MethodLayout
+
+    @property
+    def setups_teardowns(self):
+        cls_args = arguments(args=[arg(arg="cls")])
+        cls_deco = Name(id="classmethod")
+
+        setup_class = FunctionDef(
+            name="setup_class",
+            body=[
+                ImportFrom(
+                    module=self._src.module.name,
+                    names=[alias(name=self._src.ast.name)],
+                ),
+                Pass(),
+            ],
+            args=cls_args,
+            decorator_list=[cls_deco],
+        )
+        teardown_class = FunctionDef(
+            name="teardown_class", args=cls_args, decorator_list=[cls_deco]
+        )
+
+        self_args = arguments(args=[arg(arg="self"), arg(arg="method")])
+
+        setup_method = FunctionDef(name="setup_method", args=self_args)
+        teardown_method = FunctionDef(name="teardown_method", args=self_args)
+
+        return [setup_class, teardown_class, setup_method, teardown_method]
+
+    @property
+    def methods(self):
+        methods = []
+        for m in self._src.ast.body:
+            if (isinstance(m, FunctionDef)) and (not m.name.startswith("__")):
+                methods.append(self.method_layout(self._src.evolve(ast=m)).build())
+
+        return methods
+
+    @property
+    def name(self) -> str:
+        return f"{self.prefix}{self._src.ast.name}"
+
+    @property
+    def body(self) -> LIST[stmt]:
+
+        return self.setups_teardowns + self.methods
+
+
+class Template:
+
+    class_layout = ClassLayout
+    function_layout = FunctionLayout
+
+    @classmethod
+    def load(cls, name: str):
+
+        modname, qname = name.rsplit(".", 1)
+
+        mod = load_module_by_name(modname)
+
+        return getattr(mod, qname)
