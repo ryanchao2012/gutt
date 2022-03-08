@@ -3,7 +3,7 @@ class TestInvalidModule:
     def setup_class(cls):
         from gutt.cli.main import InvalidModule
 
-        pass
+        assert InvalidModule
 
     @classmethod
     def teardown_class(cls):
@@ -19,10 +19,10 @@ class TestInvalidModule:
 def test_print_version():
     from gutt.cli.main import print_version
 
-    pass
+    assert print_version
 
 
 def test_main():
     from gutt.cli.main import main
 
-    pass
+    assert main

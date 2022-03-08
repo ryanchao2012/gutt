@@ -1,9 +1,9 @@
-class TestInvalidModuleName:
+class TestModuleIO:
     @classmethod
     def setup_class(cls):
-        from gutt.cli.main import InvalidModuleName
+        from gutt.model import ModuleIO
 
-        assert InvalidModuleName
+        assert ModuleIO
 
     @classmethod
     def teardown_class(cls):
@@ -15,19 +15,22 @@ class TestInvalidModuleName:
     def teardown_method(self, method):
         pass
 
+    def test_from_name(self):
+        pass
 
-def test_print_version():
-    from gutt.cli.main import print_version
+    def test_submodules(self):
+        pass
 
-    assert print_version
+    def test_ispkg(self):
+        pass
 
 
-class TestInvalidModule:
+class TestCode:
     @classmethod
     def setup_class(cls):
-        from gutt.cli.main import InvalidModule
+        from gutt.model import Code
 
-        assert InvalidModule
+        assert Code
 
     @classmethod
     def teardown_class(cls):
