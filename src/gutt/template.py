@@ -3,6 +3,7 @@ from typing import List as LIST
 import attr
 from asttrs import (
     AST,
+    Assert,
     ClassDef,
     FunctionDef,
     ImportFrom,
@@ -84,7 +85,7 @@ class ClassLayout(Layout):
                     module=self._src.module.name,
                     names=[alias(name=self._src.ast.name)],
                 ),
-                Pass(),
+                Assert(test=Name(id=self._src.ast.name)),
             ],
             args=cls_args,
             decorator_list=[cls_deco],
@@ -115,7 +116,6 @@ class ClassLayout(Layout):
 
     @property
     def body(self) -> LIST[stmt]:
-
         return self.setups_teardowns + self.methods
 
 
@@ -132,3 +132,49 @@ class Template:
         mod = load_module_by_name(modname)
 
         return getattr(mod, qname)
+
+
+class AssertFalseFunctionLayout(FunctionLayout):
+    @property
+    def body(self):
+        return [
+            ImportFrom(
+                module=self._src.module.name, names=[alias(name=self._src.ast.name)]
+            ),
+            Assert(test=Name(id="False")),
+        ]
+
+
+class AssertSelfFunctionLayout(FunctionLayout):
+    @property
+    def body(self):
+        return [
+            ImportFrom(
+                module=self._src.module.name, names=[alias(name=self._src.ast.name)]
+            ),
+            Assert(test=Name(id=self._src.ast.name)),
+        ]
+
+
+class AssertFalseMethodLayout(MethodLayout):
+    @property
+    def body(self):
+        return [Assert(test=Name(id="False"))]
+
+
+class AssertFalseClassLayout(ClassLayout):
+
+    method_layout = AssertFalseMethodLayout
+
+
+class AssertFalseTemplate(Template):
+
+    function_layout = AssertFalseFunctionLayout
+    class_layout = AssertFalseClassLayout
+
+
+class AssertSelfTemplate(Template):
+    function_layout = AssertSelfFunctionLayout
+
+
+PassTemplate = Template

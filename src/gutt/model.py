@@ -9,14 +9,6 @@ from asttrs import ClassDef, FunctionDef, Lambda, Serializable, immutable
 from .utils import catch_module_from_sys
 
 
-class InvalidModule(Exception):
-    pass
-
-
-class FolderNotFoundError(FileNotFoundError):
-    pass
-
-
 @immutable
 class ModuleIO(Serializable):
     name: str
@@ -39,12 +31,10 @@ class ModuleIO(Serializable):
         src = spec.origin
 
         if src.endswith("__init__.py"):
-
             pfx = modname
             base = "__init__"
 
         else:
-
             pfx, base = modname.rsplit(".", 1) if "." in modname else ("", modname)
 
         dst = os.path.join(outdir, pfx.replace(".", os.path.sep), f"test_{base}.py")
