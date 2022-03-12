@@ -17,7 +17,9 @@ class ModuleIO(Serializable):
     dst: str
 
     @classmethod
-    def from_name(cls, modname: str, outdir: str) -> Optional["ModuleIO"]:
+    def from_name(
+        cls, modname: str, outdir: str, head: str = None
+    ) -> Optional["ModuleIO"]:
 
         with catch_module_from_sys(modname):
             try:
@@ -28,16 +30,24 @@ class ModuleIO(Serializable):
         if (spec is None) or (spec.origin is None) or (not os.path.isfile(spec.origin)):
             return None
 
-        src = spec.origin
+        outdir = os.path.normpath(outdir)
+        head = head or modname
 
+        src = spec.origin
         if src.endswith("__init__.py"):
             pfx = modname
             base = "__init__"
-
         else:
             pfx, base = modname.rsplit(".", 1) if "." in modname else ("", modname)
 
-        dst = os.path.join(outdir, pfx.replace(".", os.path.sep), f"test_{base}.py")
+        pfx = re.sub(rf"^{head}\.?", "", pfx)
+
+        dst = os.path.join(
+            outdir,
+            head.replace(".", "_"),
+            pfx.replace(".", os.path.sep),
+            f"test_{base}.py",
+        )
 
         return cls(name=modname, outdir=outdir, src=src, dst=dst)
 
@@ -57,7 +67,7 @@ class ModuleIO(Serializable):
 
                 name = self.name + sub.replace(os.path.sep, ".")
 
-                mod = self.from_name(name, self.outdir)
+                mod = self.from_name(name, self.outdir, head=self.name)
 
                 if mod:
                     yield mod
