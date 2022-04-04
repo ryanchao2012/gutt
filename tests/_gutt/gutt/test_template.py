@@ -42,6 +42,9 @@ class TestFunctionLayout:
     def test_body(self):
         pass
 
+    def test_args(self):
+        pass
+
 
 class TestMethodLayout:
     @classmethod
