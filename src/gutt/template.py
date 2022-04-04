@@ -5,8 +5,10 @@ from asttrs import (
     AST,
     Assert,
     ClassDef,
+    Constant,
     FunctionDef,
     ImportFrom,
+    Load,
     Name,
     Pass,
     alias,
@@ -48,6 +50,10 @@ class FunctionLayout(Layout):
         return f"{self.prefix}{self._src.ast.name}"
 
     @property
+    def args(self):
+        return arguments()
+
+    @property
     def body(self):
         return [
             ImportFrom(
@@ -76,7 +82,7 @@ class ClassLayout(Layout):
     @property
     def setups_teardowns(self):
         cls_args = arguments(args=[arg(arg="cls")])
-        cls_deco = Name(id="classmethod")
+        cls_deco = Name(id="classmethod", ctx=Load())
 
         setup_class = FunctionDef(
             name="setup_class",
@@ -84,20 +90,26 @@ class ClassLayout(Layout):
                 ImportFrom(
                     module=self._src.module.name,
                     names=[alias(name=self._src.ast.name)],
+                    level=0,
                 ),
-                Assert(test=Name(id=self._src.ast.name)),
+                Assert(test=Name(id=self._src.ast.name, ctx=Load())),
             ],
             args=cls_args,
             decorator_list=[cls_deco],
         )
         teardown_class = FunctionDef(
-            name="teardown_class", args=cls_args, decorator_list=[cls_deco]
+            name="teardown_class",
+            args=cls_args,
+            body=[Pass()],
+            decorator_list=[cls_deco],
         )
 
         self_args = arguments(args=[arg(arg="self"), arg(arg="method")])
 
-        setup_method = FunctionDef(name="setup_method", args=self_args)
-        teardown_method = FunctionDef(name="teardown_method", args=self_args)
+        setup_method = FunctionDef(name="setup_method", args=self_args, body=[Pass()])
+        teardown_method = FunctionDef(
+            name="teardown_method", args=self_args, body=[Pass()]
+        )
 
         return [setup_class, teardown_class, setup_method, teardown_method]
 
@@ -139,9 +151,11 @@ class AssertFalseFunctionLayout(FunctionLayout):
     def body(self):
         return [
             ImportFrom(
-                module=self._src.module.name, names=[alias(name=self._src.ast.name)]
+                module=self._src.module.name,
+                names=[alias(name=self._src.ast.name)],
+                level=0,
             ),
-            Assert(test=Name(id="False")),
+            Assert(test=Constant(value=False)),
         ]
 
 
@@ -150,16 +164,18 @@ class AssertSelfFunctionLayout(FunctionLayout):
     def body(self):
         return [
             ImportFrom(
-                module=self._src.module.name, names=[alias(name=self._src.ast.name)]
+                module=self._src.module.name,
+                names=[alias(name=self._src.ast.name)],
+                level=0,
             ),
-            Assert(test=Name(id=self._src.ast.name)),
+            Assert(test=Name(id=self._src.ast.name, ctx=Load())),
         ]
 
 
 class AssertFalseMethodLayout(MethodLayout):
     @property
     def body(self):
-        return [Assert(test=Name(id="False"))]
+        return [Assert(test=Constant(value=False))]
 
 
 class AssertFalseClassLayout(ClassLayout):

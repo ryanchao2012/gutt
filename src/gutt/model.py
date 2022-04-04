@@ -4,7 +4,8 @@ from importlib.util import find_spec
 from pathlib import Path
 from typing import Generator, Optional, Union
 
-from asttrs import ClassDef, FunctionDef, Lambda, Serializable, immutable
+from asttrs import ClassDef, FunctionDef, Lambda
+from asttrs._base import Serializable, immutable
 
 from .utils import catch_module_from_sys
 
