@@ -57,7 +57,9 @@ class FunctionLayout(Layout):
     def body(self):
         return [
             ImportFrom(
-                module=self._src.module.name, names=[alias(name=self._src.ast.name)]
+                module=self._src.module.name,
+                names=[alias(name=self._src.ast.name)],
+                level=0,
             ),
             Pass(),
         ]
