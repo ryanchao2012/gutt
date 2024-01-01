@@ -1,3 +1,4 @@
+import json
 import os
 import pathlib
 import pkgutil
@@ -7,7 +8,47 @@ import tempfile
 from contextlib import contextmanager
 from importlib._bootstrap_external import SourceFileLoader
 from types import ModuleType
-from typing import Union
+from typing import Dict, Union
+
+import attr
+import cattr
+
+immutable = attr.s(auto_attribs=True, slots=True, frozen=True, kw_only=True)
+
+
+@immutable
+class Serializable:
+    def to_dict(self, recurse=True, **kwargs):
+        return attr.asdict(self, recurse=recurse, **kwargs)
+
+    @classmethod
+    def from_dict(cls, data: Dict):
+        return cattr.structure_attrs_fromdict(data, cls)
+
+    @classmethod
+    def from_json(cls, json_str: str):
+        return cls.from_dict(json.loads(json_str))
+
+    def to_json(self, ensure_ascii=False, **kwargs):
+        return json.dumps(self.to_dict(), ensure_ascii=ensure_ascii, **kwargs)
+
+    def evolve(self, **kwargs):
+        return attr.evolve(self, **kwargs)
+
+    def mutate_from_other(self, other: "Serializable", excludes=[]):
+        self_fields = [f2.name for f2 in attr.fields(self.__class__)]
+
+        valid_fields = [
+            f1.name
+            for f1 in attr.fields(other.__class__)
+            if (getattr(other, f1.name, None) is not None)
+            and (f1.name not in excludes)
+            and (f1.name in self_fields)
+        ]
+
+        data = other.to_dict(filter=lambda att, value: att.name in valid_fields)
+
+        return self.evolve(**data)
 
 
 def load_module_by_name(modname: str) -> ModuleType:
@@ -16,7 +57,6 @@ def load_module_by_name(modname: str) -> ModuleType:
 
 
 def blacking(source_code: str):
-
     with tempfile.NamedTemporaryFile("w", delete=False) as f:
         f.write(source_code)
         fname = f.name
@@ -36,7 +76,6 @@ def blacking(source_code: str):
 
 
 def isorting(source_code: str):
-
     with tempfile.NamedTemporaryFile("w", delete=False) as f:
         f.write(source_code)
         fname = f.name
@@ -57,12 +96,10 @@ def isorting(source_code: str):
 
 @contextmanager
 def expand_sys_path(*paths: str):
-
     num = len(paths)
 
     for p in paths[::-1]:
         if p and isinstance(p, str):
-
             sys.path.insert(0, p)
 
     yield
@@ -72,9 +109,7 @@ def expand_sys_path(*paths: str):
 
 
 def makefile(fullpath: str, content: Union[str, bytes] = "", overwrite: bool = False):
-
     if not os.path.isfile(fullpath):
-
         dirpath = os.path.dirname(fullpath)
 
         if not os.path.isdir(dirpath):
@@ -83,12 +118,10 @@ def makefile(fullpath: str, content: Union[str, bytes] = "", overwrite: bool = F
         _writefile(fullpath, content)
 
     elif overwrite:
-
         _writefile(fullpath, content)
 
 
 def _writefile(fullpath: str, content: Union[str, bytes] = ""):
-
     if not isinstance(content, (str, bytes)):
         raise TypeError(f"content must be str or bytes, got: {type(content)}")
 
@@ -98,7 +131,6 @@ def _writefile(fullpath: str, content: Union[str, bytes] = ""):
 
 @contextmanager
 def catch_module_from_sys(modname: str):
-
     m = sys.modules.pop(modname, None)
 
     yield
@@ -108,7 +140,6 @@ def catch_module_from_sys(modname: str):
 
 
 def populate_init(folder: str):
-
     root = pathlib.Path(folder)
     paths = {root}
 
@@ -119,7 +150,6 @@ def populate_init(folder: str):
         parent = path.parent
 
         while parent > root:
-
             if not parent.joinpath("__init__.py").exists():
                 paths.add(parent)
 
