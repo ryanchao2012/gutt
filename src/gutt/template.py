@@ -1,39 +1,39 @@
+import dataclasses
 from typing import List as LIST
 
-import attr
-from asttrs import (
-    AST,
+from libcst import (
     Assert,
+    BaseSuite,
     ClassDef,
-    Constant,
+    CSTNode,
+    Decorator,
     FunctionDef,
+    ImportAlias,
     ImportFrom,
-    Load,
+    IndentedBlock,
     Name,
+    Param,
+    Parameters,
     Pass,
-    alias,
-    arg,
-    arguments,
-    stmt,
+    SimpleStatementLine,
+    parse_expression,
 )
 
-from gutt.model import Code
-
+from .model import Code
 from .utils import load_module_by_name
 
 
 class Layout:
+    """TODO: What is this"""
 
     prefix = "Test"
-    ref = AST
+    ref = CSTNode
 
-    def __init__(self, src: Code):
+    def __init__(self, code: Code):
+        self._code = code
 
-        self._src = src
-
-    def build(self) -> AST:
-
-        fields = {f.name for f in attr.fields(self.ref)}
+    def build(self) -> CSTNode:
+        fields = {f.name for f in dataclasses.fields(self.ref)}
 
         params = {fd: getattr(self, fd) for fd in fields if hasattr(self, fd)}
 
@@ -41,105 +41,138 @@ class Layout:
 
 
 class FunctionLayout(Layout):
-
     prefix = "test_"
     ref = FunctionDef
 
     @property
-    def name(self):
-        return f"{self.prefix}{self._src.ast.name}"
+    def name(self) -> Name:
+        return Name(value=f"{self.prefix}{self._code.cst.name.value}")
 
     @property
-    def args(self):
-        return arguments()
+    def params(self) -> Parameters:
+        return Parameters()
 
     @property
-    def body(self):
-        return [
-            ImportFrom(
-                module=self._src.module.name,
-                names=[alias(name=self._src.ast.name)],
-                level=0,
-            ),
-            Pass(),
-        ]
+    def body(self) -> BaseSuite:
+        return IndentedBlock(
+            body=[
+                SimpleStatementLine(
+                    body=[
+                        ImportFrom(
+                            module=parse_expression(self._code.module.name),
+                            names=[
+                                ImportAlias(name=Name(value=self._code.cst.name.value))
+                            ],
+                        )
+                    ]
+                ),
+                SimpleStatementLine(body=[Pass()]),
+            ]
+        )
 
 
 class MethodLayout(FunctionLayout):
     @property
-    def body(self):
-        return [Pass()]
+    def body(self) -> BaseSuite:
+        return IndentedBlock(body=[SimpleStatementLine(body=[Pass()])])
 
     @property
-    def args(self):
-        return arguments(args=[arg(arg="self")])
+    def params(self) -> Parameters:
+        return Parameters(params=[Param(Name(value="self"))])
 
 
 class ClassLayout(Layout):
-
     prefix = "Test"
     ref = ClassDef
     method_layout = MethodLayout
 
     @property
-    def setups_teardowns(self):
-        cls_args = arguments(args=[arg(arg="cls")])
-        cls_deco = Name(id="classmethod", ctx=Load())
+    def setups_teardowns(self) -> LIST[FunctionDef]:
+        """TODO: what is this"""
 
+        cls_params = Parameters(params=[Param(Name(value="cls"))])
+        cls_deco = Decorator(decorator=Name(value="classmethod"))
         setup_class = FunctionDef(
-            name="setup_class",
-            body=[
-                ImportFrom(
-                    module=self._src.module.name,
-                    names=[alias(name=self._src.ast.name)],
-                    level=0,
-                ),
-                Assert(test=Name(id=self._src.ast.name, ctx=Load())),
-            ],
-            args=cls_args,
-            decorator_list=[cls_deco],
+            name=Name(value="setup_class"),
+            body=IndentedBlock(
+                body=[
+                    SimpleStatementLine(
+                        body=[
+                            ImportFrom(
+                                module=parse_expression(self._code.module.name),
+                                names=[
+                                    ImportAlias(
+                                        name=Name(value=self._code.cst.name.value)
+                                    )
+                                ],
+                            )
+                        ]
+                    ),
+                    SimpleStatementLine(
+                        body=[
+                            Assert(test=Name(value=self._code.cst.name.value)),
+                        ]
+                    ),
+                ]
+            ),
+            params=cls_params,
+            decorators=[cls_deco],
         )
+
         teardown_class = FunctionDef(
-            name="teardown_class",
-            args=cls_args,
-            body=[Pass()],
-            decorator_list=[cls_deco],
+            name=Name(value="teardown_class"),
+            params=cls_params,
+            body=IndentedBlock(body=[SimpleStatementLine(body=[Pass()])]),
+            decorators=[cls_deco],
         )
 
-        self_args = arguments(args=[arg(arg="self"), arg(arg="method")])
+        self_params = Parameters(
+            params=[Param(Name(value="self")), Param(Name(value="method"))]
+        )
 
-        setup_method = FunctionDef(name="setup_method", args=self_args, body=[Pass()])
+        setup_method = FunctionDef(
+            name=Name(value="setup_method"),
+            params=self_params,
+            body=IndentedBlock(body=[SimpleStatementLine(body=[Pass()])]),
+        )
+
         teardown_method = FunctionDef(
-            name="teardown_method", args=self_args, body=[Pass()]
+            name=Name(value="teardown_method"),
+            params=self_params,
+            body=IndentedBlock(body=[SimpleStatementLine(body=[Pass()])]),
         )
 
         return [setup_class, teardown_class, setup_method, teardown_method]
 
     @property
-    def methods(self):
+    def methods(self) -> LIST[FunctionDef]:
         methods = []
-        for m in self._src.ast.body:
-            if (isinstance(m, FunctionDef)) and (not m.name.startswith("__")):
-                methods.append(self.method_layout(self._src.evolve(ast=m)).build())
+        for stmt in self._code.cst.body.body:
+            if (isinstance(stmt, FunctionDef)) and (
+                not stmt.name.value.startswith("__")
+            ):
+                methods.append(self.method_layout(self._code.evolve(cst=stmt)).build())
 
         return methods
 
     @property
-    def name(self) -> str:
-        return f"{self.prefix}{self._src.ast.name}"
+    def name(self) -> Name:
+        return Name(value=f"{self.prefix}{self._code.cst.name.value}")
 
     @property
-    def body(self) -> LIST[stmt]:
-        return self.setups_teardowns + self.methods
+    def body(self) -> BaseSuite:
+        return IndentedBlock(body=self.setups_teardowns + self.methods)
 
 
 class Template:
+    """TODO: what"""
 
     class_layout = ClassLayout
     function_layout = FunctionLayout
 
     @classmethod
-    def load(cls, name: str):
+    def load(cls, name: str) -> "Template":
+        """TODO: what?"""
 
         modname, qname = name.rsplit(".", 1)
 
@@ -150,43 +183,65 @@ class Template:
 
 class AssertFalseFunctionLayout(FunctionLayout):
     @property
-    def body(self):
-        return [
-            ImportFrom(
-                module=self._src.module.name,
-                names=[alias(name=self._src.ast.name)],
-                level=0,
-            ),
-            Assert(test=Constant(value=False)),
-        ]
+    def body(self) -> BaseSuite:
+        return IndentedBlock(
+            body=[
+                SimpleStatementLine(
+                    body=[
+                        ImportFrom(
+                            module=parse_expression(self._code.module.name),
+                            names=[
+                                ImportAlias(name=Name(value=self._code.cst.name.value))
+                            ],
+                        )
+                    ]
+                ),
+                SimpleStatementLine(
+                    body=[
+                        Assert(test=Name(value="False")),
+                    ]
+                ),
+            ]
+        )
 
 
 class AssertSelfFunctionLayout(FunctionLayout):
     @property
-    def body(self):
-        return [
-            ImportFrom(
-                module=self._src.module.name,
-                names=[alias(name=self._src.ast.name)],
-                level=0,
-            ),
-            Assert(test=Name(id=self._src.ast.name, ctx=Load())),
-        ]
+    def body(self) -> BaseSuite:
+        return IndentedBlock(
+            body=[
+                SimpleStatementLine(
+                    body=[
+                        ImportFrom(
+                            module=parse_expression(self._code.module.name),
+                            names=[
+                                ImportAlias(name=Name(value=self._code.cst.name.value))
+                            ],
+                        )
+                    ]
+                ),
+                SimpleStatementLine(
+                    body=[
+                        Assert(test=Name(value=self._code.cst.name.value)),
+                    ]
+                ),
+            ]
+        )
 
 
 class AssertFalseMethodLayout(MethodLayout):
     @property
     def body(self):
-        return [Assert(test=Constant(value=False))]
+        return IndentedBlock(
+            body=[SimpleStatementLine(body[Assert(test=Name(value="False"))])]
+        )
 
 
 class AssertFalseClassLayout(ClassLayout):
-
     method_layout = AssertFalseMethodLayout
 
 
 class AssertFalseTemplate(Template):
-
     function_layout = AssertFalseFunctionLayout
     class_layout = AssertFalseClassLayout
 

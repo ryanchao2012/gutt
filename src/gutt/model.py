@@ -4,10 +4,9 @@ from importlib.util import find_spec
 from pathlib import Path
 from typing import Generator, Optional, Union
 
-from asttrs import ClassDef, FunctionDef, Lambda
-from asttrs._base import Serializable, immutable
+from libcst import ClassDef, FunctionDef, Lambda
 
-from .utils import catch_module_from_sys
+from .utils import Serializable, catch_module_from_sys, immutable
 
 
 @immutable
@@ -21,7 +20,6 @@ class ModuleIO(Serializable):
     def from_name(
         cls, modname: str, outdir: str, head: str = None
     ) -> Optional["ModuleIO"]:
-
         with catch_module_from_sys(modname):
             try:
                 spec = find_spec(modname)
@@ -58,7 +56,6 @@ class ModuleIO(Serializable):
             prefix = os.path.dirname(self.src)
 
             for p in Path(prefix).glob("**/*.py"):
-
                 path = str(p)
                 if path.endswith("__init__.py"):
                     path = os.path.dirname(path)
@@ -74,16 +71,14 @@ class ModuleIO(Serializable):
                     yield mod
 
         else:
-
             yield self
 
     @property
     def ispkg(self):
-
         return self.src.endswith("__init__.py")
 
 
 @immutable
 class Code(Serializable):
     module: Optional[ModuleIO] = None
-    ast: Union[FunctionDef, Lambda, ClassDef]
+    cst: Union[FunctionDef, Lambda, ClassDef]
