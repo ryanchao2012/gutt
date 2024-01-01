@@ -9,10 +9,11 @@ repository = "https://github.com/ryanchao2012/gutt"
 
 [tool.poetry.dependencies]
 python = "^3.7"
-asttrs = "^0.7.0"
 black = "*"
 click = "*"
 isort = "*"
+libcst = "*"
+cattrs = "*"
 
 [tool.poetry.dev-dependencies]
 invoke = "^1.5.0"
