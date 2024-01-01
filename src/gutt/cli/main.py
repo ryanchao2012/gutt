@@ -1,9 +1,12 @@
+import dataclasses
 import os
 import re
 from collections import OrderedDict
 
 import click
-from asttrs import ClassDef, FunctionDef, Module
+import libcst
+from libcst import ClassDef, FunctionDef, IndentedBlock, Module, SimpleStatementLine
+
 from gutt.model import Code, ModuleIO
 from gutt.template import Template as T
 from gutt.utils import blacking, expand_sys_path, makefile, populate_init
@@ -68,7 +71,6 @@ def print_version(ctx, param, value):
     help="Run in dryrun mode.",
 )
 def main(ctx, modname, path, exclude, output, template_class, dryrun):
-
     with expand_sys_path(*path):
         module: ModuleIO = ModuleIO.from_name(modname, output)
         Template = T.load(template_class)
@@ -77,7 +79,6 @@ def main(ctx, modname, path, exclude, output, template_class, dryrun):
             raise InvalidModule(modname)
 
         for mod in module.submodules:
-
             code_added = 0
 
             if isinstance(exclude, str) and re.search(exclude, mod.name):
@@ -86,7 +87,8 @@ def main(ctx, modname, path, exclude, output, template_class, dryrun):
                 continue
 
             try:
-                src_mod = Module.from_file(mod.src)
+                with open(mod.src, "r") as f:
+                    src_mod = libcst.parse_module(f.read())
 
             except Exception as error:
                 msg = f'{type(error)}: {error}. src: "{mod.src}"'
@@ -99,7 +101,7 @@ def main(ctx, modname, path, exclude, output, template_class, dryrun):
                 if not isinstance(el, (FunctionDef, ClassDef)):
                     continue
 
-                qname = f"{mod.name}.{el.name}"
+                qname = f"{mod.name}.{el.name.value}"
 
                 if isinstance(exclude, str) and re.search(exclude, qname):
                     click.secho("excluding: ", nl=False, fg="bright_white")
@@ -107,7 +109,7 @@ def main(ctx, modname, path, exclude, output, template_class, dryrun):
 
                     continue
 
-                src_codes.update({qname: Code(module=mod, ast=el)})
+                src_codes.update({qname: Code(module=mod, cst=el)})
 
                 click.echo("\033[K", nl=False)
                 click.secho("collecting: ", nl=False, fg="bright_white")
@@ -117,13 +119,26 @@ def main(ctx, modname, path, exclude, output, template_class, dryrun):
                 continue
 
             try:
-                test_mod = Module.from_file(mod.dst)
+                with open(mod.dst, "r") as f:
+                    test_mod = libcst.parse_module(f.read())
+
+                # NOTE: let module's and class's body mutable
+                test_mod = dataclasses.replace(test_mod, body=list(test_mod.body))
+                for i, stmt in enumerate(test_mod.body):
+                    if isinstance(stmt, ClassDef):
+                        test_mod.body[i] = dataclasses.replace(
+                            stmt,
+                            body=dataclasses.replace(
+                                stmt.body, body=list(stmt.body.body)
+                            )
+                            # IndentedBlock(body=list(stmt.body.body))
+                        )
 
                 click.secho("loading: ", nl=False, fg="bright_white")
                 click.secho(f"{mod.dst}", fg="bright_green")
 
             except FileNotFoundError:
-                test_mod = Module()
+                test_mod = Module(body=[])
 
             except Exception as error:
                 msg = f'{type(error)}: {error}. dst: "{mod.dst}"'
@@ -140,43 +155,42 @@ def main(ctx, modname, path, exclude, output, template_class, dryrun):
                         else Template.class_layout.prefix
                     )
 
-                    org_name = re.sub(rf"^{test_pfx}(.+)", r"\1", el.name)
+                    org_name = re.sub(rf"^{test_pfx}(.+)", r"\1", el.name.value)
                     key = f"{mod.name}.{org_name}"
 
                 else:
                     key = f"#{i}"
 
-                test_codes.update({key: Code(module=mod, ast=el)})
+                test_codes.update({key: Code(module=mod, cst=el)})
 
             for key, tcode in test_codes.items():
-
                 if key not in src_codes:
                     continue
 
                 scode = src_codes.pop(key)
 
-                if not isinstance(scode.ast, ClassDef):
+                if not isinstance(scode.cst, ClassDef):
                     continue
 
                 test_pfx = Template.class_layout.method_layout.prefix
                 tmethods = OrderedDict()
-                for j, el in enumerate(tcode.ast.body):
-
-                    key = el.name if isinstance(el, FunctionDef) else f"#{j}"
+                for j, el in enumerate(tcode.cst.body.body):
+                    key = el.name.value if isinstance(el, FunctionDef) else f"#{j}"
 
                     tmethods.update({key: el})
 
-                for el in scode.ast.body:
+                for el in scode.cst.body.body:
                     # TODO: allow private methods?
-                    if (not isinstance(el, FunctionDef)) or el.name.startswith("__"):
+                    if (not isinstance(el, FunctionDef)) or el.name.value.startswith(
+                        "__"
+                    ):
                         continue
 
-                    tname = f"{test_pfx}{el.name}"
+                    tname = f"{test_pfx}{el.name.value}"
 
                     if tname not in tmethods:
-
-                        f = Template.class_layout.method_layout(
-                            Code(module=scode.module, ast=el)
+                        f: FunctionDef = Template.class_layout.method_layout(
+                            Code(module=scode.module, cst=el)
                         ).build()
 
                         click.echo("\033[K", nl=False)
@@ -186,40 +200,39 @@ def main(ctx, modname, path, exclude, output, template_class, dryrun):
                             fg="bright_white",
                         )
                         click.secho(
-                            f"{scode.ast.name}:{el.name}",
+                            f"{scode.cst.name.value}:{el.name.value}",
                             fg="bright_cyan",
                         )
 
-                        tcode.ast.body.append(f)
+                        tcode.cst.body.body.append(f)
 
                         code_added += 1
 
             for key, scode in src_codes.items():
-
                 Layout = (
                     Template.function_layout
-                    if isinstance(scode.ast, FunctionDef)
+                    if isinstance(scode.cst, FunctionDef)
                     else Template.class_layout
                 )
 
-                what = "function" if isinstance(scode.ast, FunctionDef) else "class"
+                what = "function" if isinstance(scode.cst, FunctionDef) else "class"
 
                 obj = Layout(scode).build()
                 click.echo("\033[K", nl=False)
                 click.secho(f"adding {what}: ", nl=False, fg="bright_white")
-                click.secho(f"{obj.name}", fg="bright_cyan")
+                click.secho(f"{obj.name.value}", fg="bright_cyan")
 
                 test_mod.body.append(obj)
                 code_added += 1
 
             if code_added > 0:
-                test_mod = Module(body=test_mod.body)
+                code = test_mod.code
                 try:
-                    source = blacking(test_mod.to_source())
+                    source = blacking(code)
                 except Exception as error:
                     msg = f'{type(error).__name__}: {error}. src: "{mod.src}"'
                     click.secho(msg, fg="bright_red")
-                    click.secho(test_mod.to_source(), fg="bright_yellow")
+                    click.secho(code, fg="bright_yellow")
                     continue
 
                 if dryrun:
