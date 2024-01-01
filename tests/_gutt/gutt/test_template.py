@@ -45,6 +45,9 @@ class TestFunctionLayout:
     def test_args(self):
         pass
 
+    def test_params(self):
+        pass
+
 
 class TestMethodLayout:
     @classmethod
@@ -67,6 +70,9 @@ class TestMethodLayout:
         pass
 
     def test_args(self):
+        pass
+
+    def test_params(self):
         pass
 
 
@@ -236,3 +242,6 @@ class TestAssertSelfTemplate:
 
     def teardown_method(self, method):
         pass
+
+
+pass

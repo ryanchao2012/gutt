@@ -44,3 +44,39 @@ def test_populate_init():
     from gutt.utils import populate_init
 
     assert populate_init
+
+
+class TestSerializable:
+    @classmethod
+    def setup_class(cls):
+        from gutt.utils import Serializable
+
+        assert Serializable
+
+    @classmethod
+    def teardown_class(cls):
+        pass
+
+    def setup_method(self, method):
+        pass
+
+    def teardown_method(self, method):
+        pass
+
+    def test_to_dict(self):
+        pass
+
+    def test_from_dict(self):
+        pass
+
+    def test_from_json(self):
+        pass
+
+    def test_to_json(self):
+        pass
+
+    def test_evolve(self):
+        pass
+
+    def test_mutate_from_other(self):
+        pass
