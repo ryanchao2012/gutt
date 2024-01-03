@@ -61,9 +61,9 @@ def blacking(source_code: str):
         f.write(source_code)
         fname = f.name
 
-    p = sp.Popen(f"cat {fname}".split(), stdout=sp.PIPE)
+    p = sp.Popen(["cat", fname], stdout=sp.PIPE)
 
-    out = sp.check_output(f"{sys.executable} -m black -q -".split(), stdin=p.stdout)
+    out = sp.check_output([sys.executable, "-m", "black", "-q", "-"], stdin=p.stdout)
 
     p.wait()
 
@@ -80,9 +80,9 @@ def isorting(source_code: str):
         f.write(source_code)
         fname = f.name
 
-    p = sp.Popen(f"cat {fname}".split(), stdout=sp.PIPE)
+    p = sp.Popen(["cat", fname], stdout=sp.PIPE)
 
-    out = sp.check_output(f"{sys.executable} -m isort -q -".split(), stdin=p.stdout)
+    out = sp.check_output([sys.executable, "-m", "isort", "-q", "-"], stdin=p.stdout)
 
     p.wait()
 
