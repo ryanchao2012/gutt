@@ -50,8 +50,7 @@ class ModuleIO(Serializable):
 
         return cls(name=modname, outdir=outdir, src=src, dst=dst)
 
-    @property
-    def submodules(self) -> Generator["ModuleIO", None, None]:
+    def iter_submodules(self, head: str = None) -> Generator["ModuleIO", None, None]:
         if self.ispkg:
             prefix = os.path.dirname(self.src)
 
@@ -64,8 +63,8 @@ class ModuleIO(Serializable):
                 sub = os.path.splitext(suffix)[0]
 
                 name = self.name + sub.replace(os.path.sep, ".")
-
-                mod = self.from_name(name, self.outdir, head=self.name)
+                head = head or self.name
+                mod = self.from_name(name, self.outdir, head=head)
 
                 if mod:
                     yield mod

@@ -70,15 +70,21 @@ def print_version(ctx, param, value):
     is_flag=True,
     help="Run in dryrun mode.",
 )
-def main(ctx, modname, path, exclude, output, template_class, dryrun):
+@click.option(
+    "--flatten",
+    is_flag=True,
+    help="Flatten the nested structure of the test module to the single folder.",
+)
+def main(ctx, modname, path, exclude, output, template_class, dryrun, flatten):
+    head = "" if flatten else modname.split(".")[0]
     with expand_sys_path(*path):
-        module: ModuleIO = ModuleIO.from_name(modname, output)
+        module: ModuleIO = ModuleIO.from_name(modname, output, head)
         Template = T.load(template_class)
 
         if module is None:
             raise InvalidModule(modname)
 
-        for mod in module.submodules:
+        for mod in module.iter_submodules(head):
             code_added = 0
 
             if isinstance(exclude, str) and re.search(exclude, mod.name):
@@ -130,7 +136,7 @@ def main(ctx, modname, path, exclude, output, template_class, dryrun):
                             stmt,
                             body=dataclasses.replace(
                                 stmt.body, body=list(stmt.body.body)
-                            )
+                            ),
                             # IndentedBlock(body=list(stmt.body.body))
                         )
 
