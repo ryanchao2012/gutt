@@ -1,32 +1,43 @@
-[tool.poetry]
+[project]
 name = "gutt"
 version = "1.2.0"
 description = "Auto generate unit test templates"
-authors = ["Ryan <ryanchao2012@gmail.com>"]
-license = "MIT"
+authors = [
+    {name = "ryanchao2012", email = "ryanchao2012@gmail.com"},
+]
 readme = "README.md"
-repository = "https://github.com/ryanchao2012/gutt"
+license = {text = "MIT"}
 
-[tool.poetry.dependencies]
-python = "^3.7"
-black = "*"
-click = "*"
-isort = "*"
-libcst = "*"
-cattrs = "*"
+classifiers = [
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
 
-[tool.poetry.dev-dependencies]
-invoke = "^1.5.0"
-flake8 = "^3.9.0"
-pytest = "^6.2.2"
-pytest-cov = "^2.11.1"
-jedi = "<0.18"
-ipython = "^7.25.0"
+requires-python = ">=3.7"
 
-[tool.poetry.scripts]
+dependencies = [
+    "libcst",
+    "cattrs",
+    "isort",
+    "click",
+    "black"
+]
+
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "flake8",
+    "invoke",
+    "ipython",
+]
+
+
+[project.scripts]
 gutt = "gutt.cli.main:main"
-
-
-[build-system]
-requires = ["poetry>=0.12"]
-build-backend = "poetry.masonry.api"
