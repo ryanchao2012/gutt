@@ -1,7 +1,7 @@
 [project]
 name = "gutt"
 version = "1.2.0"
-description = "Auto generate unit test templates"
+description = "Auto generate unit test template"
 authors = [
     {name = "ryanchao2012", email = "ryanchao2012@gmail.com"},
 ]
@@ -41,3 +41,7 @@ dev = [
 
 [project.scripts]
 gutt = "gutt.cli.main:main"
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
